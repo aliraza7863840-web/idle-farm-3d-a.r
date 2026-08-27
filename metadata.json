@@ -1,0 +1,6 @@
+{
+  "name": "Farm Empire 3D",
+  "description": "A 3D Idle Farm Empire game featuring a customizable character, dynamic weather system, crops, animals, employee automation, and farmhouse upgrades.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

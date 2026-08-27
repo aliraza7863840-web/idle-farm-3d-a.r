@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Farm Empire 3D</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="webgl-canvas"></canvas>
+
+    <!-- Top Resource Bar -->
+    <header class="top-bar">
+      <div class="top-resources">
+        <div class="stat-pill coin-pill" id="coin-pill">
+          <div class="pill-badge coin-badge">
+            <span class="pill-badge-icon">$</span>
+          </div>
+          <span class="pill-value" id="coins-display">150</span>
+        </div>
+
+        <div class="stat-pill gem-pill" id="gem-pill">
+          <div class="pill-badge gem-badge">
+            <span class="pill-badge-icon">◆</span>
+          </div>
+          <span class="pill-value" id="gems-display">10</span>
+        </div>
+      </div>
+
+      <div class="level-card" id="level-card">
+        <span class="level-tag">LEVEL</span>
+        <span class="level-number" id="level-badge">1</span>
+        <div class="xp-bar-container">
+          <div class="xp-bar-fill" id="xp-bar-fill" style="width: 20%;"></div>
+          <span class="xp-text" id="xp-text">20 / 100 XP</span>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <button class="icon-btn weather-btn" id="btn-weather" title="Change Weather & Boost">☀️</button>
+        <button class="icon-btn" id="btn-daynight" title="Toggle Time of Day">☀️</button>
+        <button class="icon-btn" id="btn-audio" title="Toggle Sound">🔊</button>
+      </div>
+    </header>
+
+    <!-- Camera & Quick Action Controls (Right Side) -->
+    <aside class="side-controls">
+      <button class="side-btn tactile-btn" id="btn-cam-reset" title="Follow Character">
+        <span class="side-btn-icon">🚜</span>
+        <label>Focus</label>
+      </button>
+      <button class="side-btn tactile-btn" id="btn-cam-overview" title="Farm Overview">
+        <span class="side-btn-icon">🗺️</span>
+        <label>Map</label>
+      </button>
+      <button class="side-btn tactile-btn market-side-btn" id="btn-quick-market" title="Quick Market" onclick="if(window.uiController) window.uiController.openSheet('market')">
+        <span class="side-btn-icon">📦</span>
+        <label>Market</label>
+      </button>
+      <div class="zoom-btn-group">
+        <button class="zoom-btn" id="btn-zoom-in" title="Zoom In">+</button>
+        <button class="zoom-btn" id="btn-zoom-out" title="Zoom Out">-</button>
+      </div>
+    </aside>
+
+    <!-- Floating Live Activity / Harvesting Card -->
+    <div class="hud-status-card" id="farm-banner">
+      <div class="hud-status-header">
+        <span class="hud-status-title" id="banner-text">🌾 Farm Thriving</span>
+        <span class="hud-status-badge hud-weather-badge" id="hud-weather-badge">☀️ +30% Sun</span>
+      </div>
+      <div class="hud-progress-track">
+        <div class="hud-progress-fill" id="hud-progress-fill" style="width: 75%;">
+          <div class="hud-progress-pulse"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Harvest & Floating Resource Numbers -->
+    <div class="floating-notifs" id="floating-notifs"></div>
+
+    <!-- Virtual Joystick for Touch Movement -->
+    <div class="joystick-zone" id="joystick-zone">
+      <div class="joystick-base" id="joystick-base">
+        <div class="joystick-thumb" id="joystick-thumb"></div>
+      </div>
+    </div>
+
+    <!-- Bottom Action & Navigation Bar -->
+    <footer class="bottom-footer">
+      <nav class="bottom-nav">
+        <button class="nav-item" id="nav-btn-crops">
+          <span class="nav-icon">🌱</span>
+          <span class="nav-label">Crops</span>
+        </button>
+        <button class="nav-item" id="nav-btn-animals">
+          <span class="nav-icon">🐄</span>
+          <span class="nav-label">Barn</span>
+        </button>
+        
+        <!-- Big Tactile Upgrade Button with Glow -->
+        <div class="upgrade-btn-wrapper" id="nav-btn-upgrade">
+          <div class="upgrade-btn-glow"></div>
+          <button class="upgrade-btn-3d" type="button">
+            <span class="upgrade-btn-title">UPGRADE</span>
+            <span class="upgrade-btn-sub">HQ & TOOLS</span>
+          </button>
+        </div>
+
+        <button class="nav-item" id="nav-btn-workers">
+          <span class="nav-icon">👥</span>
+          <span class="nav-label">Staff</span>
+        </button>
+        <button class="nav-item" id="nav-btn-shop">
+          <span class="nav-icon">🏪</span>
+          <span class="nav-label">Market</span>
+        </button>
+      </nav>
+    </footer>
+
+    <!-- Slide-in Modal Panel Container -->
+    <div class="modal-backdrop" id="modal-backdrop">
+      <div class="modal-sheet" id="modal-sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <h2 class="sheet-title" id="sheet-title">Farm Upgrades</h2>
+          <button class="sheet-close-btn" id="sheet-close-btn">✕</button>
+        </div>
+        <div class="sheet-body" id="sheet-body">
+          <!-- Dynamic Content Injected Here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Offline Progress Celebration Modal -->
+    <div class="popup-modal" id="offline-modal" style="display: none;">
+      <div class="popup-card">
+        <div class="popup-icon">🌾🎉</div>
+        <h2 class="popup-title">Welcome Back, Farmer!</h2>
+        <p class="popup-desc" id="offline-desc">Your farm workers kept tending the fields while you were away!</p>
+        <div class="offline-reward-box">
+          <div class="reward-row">
+            <span>Away Time:</span>
+            <strong id="offline-time">2 hrs 30 mins</strong>
+          </div>
+          <div class="reward-row">
+            <span>Coins Harvested:</span>
+            <strong class="highlight-coin" id="offline-coins">+1,250 🪙</strong>
+          </div>
+          <div class="reward-row">
+            <span>Gems Found:</span>
+            <strong class="highlight-gem" id="offline-gems">+3 💎</strong>
+          </div>
+        </div>
+        <button class="claim-btn" id="btn-claim-offline">Collect All Resources 🌾</button>
+      </div>
+    </div>
+
+    <!-- Level Up Celebration -->
+    <div class="level-up-toast" id="level-up-toast" style="display: none;">
+      <div class="lvl-toast-content">
+        <span class="lvl-star">⭐</span>
+        <div>
+          <h3>LEVEL UP!</h3>
+          <p id="lvl-up-text">You reached Level 2! New plots unlocked!</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/three.min.js"></script>
+  <script src="js/OrbitControls.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/character.js"></script>
+  <script src="js/weather.js"></script>
+  <script src="js/farm_world.js"></script>
+  <script src="js/game_state.js"></script>
+  <script src="js/ui_controller.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
