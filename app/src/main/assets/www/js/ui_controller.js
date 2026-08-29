@@ -133,6 +133,23 @@ class UIController {
       });
     }
 
+    // Animal Care HUD Quick Action (Hot Weather & Night Coop)
+    const hudCareBtn = document.getElementById('hud-care-action-btn');
+    if (hudCareBtn) {
+      hudCareBtn.addEventListener('click', () => {
+        if (this.gameState.isHotWeather) {
+          this.gameState.toggleAnimalsShelter();
+        } else if (this.gameState.chickensInCoop) {
+          this.gameState.toggleChickenCoopLock();
+        }
+        this.updateCareHUD();
+        if (this.isAnimalsSheetOpen) {
+          this.sheetBody.innerHTML = '';
+          this.renderAnimalsSheet();
+        }
+      });
+    }
+
     // Touch Joystick Virtual Controls
     this.setupJoystick();
   }
@@ -356,7 +373,7 @@ class UIController {
 
   renderAnimalsSheet() {
     if (!this.animalSheetTab) this.animalSheetTab = 'livestock';
-    if (!this.selectedBreedingPen) this.selectedBreedingPen = 'cow';
+    if (!this.selectedBreedingPen) this.selectedBreedingPen = 'cow_buffalo';
 
     // Top Tabs: Livestock Pens vs Breeding Sanctuary
     const tabHeader = document.createElement('div');
@@ -383,6 +400,71 @@ class UIController {
       this.renderAnimalsSheet();
     });
 
+    // Hot Weather Care & Night Chicken Coop Routine Controls
+    const isHot = this.gameState.isHotWeather;
+    const sheltered = this.gameState.animalsSheltered;
+    const coopLocked = this.gameState.chickenCoopLocked;
+    const chickensInCoop = this.gameState.chickensInCoop;
+
+    const careBox = document.createElement('div');
+    careBox.className = 'animal-care-control-box';
+    careBox.innerHTML = `
+      <div class="care-card ${isHot ? 'care-card-urgent' : ''}">
+        <div class="care-card-icon">${isHot ? '☀️' : '🛖'}</div>
+        <div class="care-card-body">
+          <div class="care-card-title">${isHot ? 'Afternoon Heat Care (URGENT)' : 'Animal Weather Shelters'}</div>
+          <div class="care-card-desc">
+            ${isHot
+              ? (sheltered
+                  ? '✅ All animals resting safely in shaded shelters! Full production preserved.'
+                  : '⚠️ Blazing sun! Move animals into shaded shelters or yields drop by 55%!')
+              : (sheltered
+                  ? 'Animals are currently resting inside their shaded shelters.'
+                  : 'Animals are grazing happily in outdoor pastures.')
+            }
+          </div>
+        </div>
+        <button class="buy-btn" id="care-shelter-btn" style="background:${sheltered ? 'linear-gradient(135deg, #4caf50, #2e7d32)' : 'linear-gradient(135deg, #ff9800, #f57c00)'}; white-space:nowrap; padding:8px 12px; font-size:0.8rem;">
+          ${sheltered ? '🌿 Let Roam' : '🛖 Move to Shelters'}
+        </button>
+      </div>
+
+      <div class="care-card">
+        <div class="care-card-icon">🐔</div>
+        <div class="care-card-body">
+          <div class="care-card-title">Night Chicken Coop & Security</div>
+          <div class="care-card-desc">
+            ${chickensInCoop
+              ? (coopLocked
+                  ? '🔒 Coop securely locked shut for the night. Chickens are safe!'
+                  : '🚪 Chickens are roosting inside. Lock the coop at night for safety.')
+              : (coopLocked
+                  ? '⚠️ Coop door is locked! Unlock it to let chickens out into scratch yard.'
+                  : '🌿 Chickens are roaming and pecking in the scratch yard.')
+            }
+          </div>
+        </div>
+        <button class="buy-btn" id="care-coop-btn" style="background:${coopLocked ? 'linear-gradient(135deg, #e91e63, #c2185b)' : 'linear-gradient(135deg, #2196f3, #1976d2)'}; white-space:nowrap; padding:8px 12px; font-size:0.8rem;">
+          ${coopLocked ? '🔓 Unlock Coop' : '🔒 Lock Coop'}
+        </button>
+      </div>
+    `;
+    this.sheetBody.appendChild(careBox);
+
+    careBox.querySelector('#care-shelter-btn').addEventListener('click', () => {
+      this.gameState.toggleAnimalsShelter();
+      this.updateCareHUD();
+      this.sheetBody.innerHTML = '';
+      this.renderAnimalsSheet();
+    });
+
+    careBox.querySelector('#care-coop-btn').addEventListener('click', () => {
+      this.gameState.toggleChickenCoopLock();
+      this.updateCareHUD();
+      this.sheetBody.innerHTML = '';
+      this.renderAnimalsSheet();
+    });
+
     if (this.animalSheetTab === 'livestock') {
       this.renderLivestockTab();
     } else {
@@ -397,15 +479,52 @@ class UIController {
 
   renderLivestockTab() {
     const animalItems = [
-      { id: 'cow', name: 'Dairy Cows Pen', icon: '🐄', cost: 250, yield: 'Fresh Milk (+60 🪙/cycle)' },
-      { id: 'chicken', name: 'Cluck Chickens Pen', icon: '🐔', cost: 150, yield: 'Fresh Eggs (+35 🪙/cycle)' },
-      { id: 'sheep', name: 'Wool Sheep Meadow', icon: '🐑', cost: 600, yield: 'Soft Wool (+140 🪙/cycle)' }
+      {
+        id: 'cow_buffalo',
+        name: '🐄 Cows & Buffaloes Pasture',
+        icon: '🐄',
+        cost: 250,
+        shelter: 'Big Shaded Shed with Hay Bales',
+        yield: 'Fresh Milk, Butter & Dairy (+70 🪙/cycle)'
+      },
+      {
+        id: 'goat',
+        name: '🐐 Mountain Goats Pen',
+        icon: '🐐',
+        cost: 300,
+        shelter: 'Covered Lean-to & Rock Mound',
+        yield: 'Goat Milk & Mountain Cheese (+55 🪙/cycle)'
+      },
+      {
+        id: 'chicken',
+        name: '🐔 Chickens Scratch Yard',
+        icon: '🐔',
+        cost: 150,
+        shelter: 'Elevated Coop with Ramp & Nesting Boxes',
+        yield: 'Farm-Fresh Brown Eggs (+35 🪙/cycle)'
+      },
+      {
+        id: 'horse',
+        name: '🐎 Horses Equestrian Paddock',
+        icon: '🐎',
+        cost: 500,
+        shelter: 'Wooden Stable Stall & Hay Troughs',
+        yield: 'Equestrian Agility & Speed (+90 🪙/cycle)'
+      },
+      {
+        id: 'dog',
+        name: '🐕 Farm Dog Watchpost',
+        icon: '🐕',
+        cost: 180,
+        shelter: 'Picket Fence Kennel & Dish',
+        yield: 'Farm Watchdog Security (+30 🪙/cycle)'
+      }
     ];
 
     animalItems.forEach(item => {
-      const isUnlocked = this.gameState.unlockedAnimals.includes(item.id);
+      const isUnlocked = this.gameState.unlockedAnimals.includes(item.id) || (item.id === 'cow_buffalo' && (this.gameState.unlockedAnimals.includes('cow') || this.gameState.unlockedAnimals.includes('cow_buffalo')));
       const canBuy = this.gameState.coins >= item.cost;
-      const penAnimals = this.gameState.animalsData.filter(a => a.penType === item.id);
+      const penAnimals = this.gameState.animalsData.filter(a => a.penType === item.id || (item.id === 'cow_buffalo' && (a.penType === 'cow' || a.penType === 'cow_buffalo')));
 
       const card = document.createElement('div');
       card.className = 'upgrade-card';
@@ -418,6 +537,7 @@ class UIController {
             <div class="card-icon">${item.icon}</div>
             <div class="card-details">
               <div class="card-name">${item.name}</div>
+              <div class="card-desc" style="color:#81d4fa; font-size:0.72rem; font-weight:700;">🛖 Shelter: ${item.shelter}</div>
               <div class="card-desc">${item.yield}</div>
               <div class="card-stat">${isUnlocked ? `✅ ${penAnimals.length} Animals Living Here` : 'Available for purchase'}</div>
             </div>
@@ -426,7 +546,7 @@ class UIController {
             ${isUnlocked
               ? `<div style="display:flex; flex-direction:column; gap:6px;">
                    <button class="buy-btn" id="feed-${item.id}">Feed (+Boost 🌾)</button>
-                   <button class="buy-btn" id="go-breed-${item.id}" style="background:linear-gradient(135deg, #e91e63, #c2185b);">Breed 💕</button>
+                   ${item.id !== 'dog' ? `<button class="buy-btn" id="go-breed-${item.id}" style="background:linear-gradient(135deg, #e91e63, #c2185b);">Breed 💕</button>` : ''}
                  </div>`
               : `<button class="buy-btn ${canBuy ? '' : 'disabled'}" id="buy-animal-${item.id}">
                   <span>Buy</span>
@@ -442,8 +562,15 @@ class UIController {
         penAnimals.forEach(anim => {
           const chipClass = anim.rarity === 'legendary' ? 'chip-legendary' : anim.rarity === 'rare' ? 'chip-rare' : 'chip-common';
           const rarityLabel = anim.rarity === 'legendary' ? '⭐ Legendary' : anim.rarity === 'rare' ? '✨ Rare' : '🌾 Common';
-          const animalEmoji = anim.penType === 'cow' ? (anim.isBaby ? '🐮' : '🐄') :
-                              anim.penType === 'chicken' ? (anim.isBaby ? '🐣' : '🐔') : (anim.isBaby ? '🐑' : '🧶');
+          const animalEmoji = anim.type === 'buffalo' ? '🐃' :
+                              anim.type === 'goat' ? '🐐' :
+                              anim.type === 'horse' ? '🐎' :
+                              anim.type === 'dog' ? '🐕' :
+                              anim.penType === 'cow_buffalo' ? (anim.isBaby ? '🐮' : '🐄') :
+                              anim.penType === 'chicken' ? (anim.isBaby ? '🐣' : '🐔') :
+                              anim.penType === 'goat' ? '🐐' :
+                              anim.penType === 'horse' ? '🐎' :
+                              anim.penType === 'dog' ? '🐕' : (anim.isBaby ? '🐮' : '🐄');
 
           inner += `
             <div class="animal-subcard">
@@ -455,13 +582,13 @@ class UIController {
                 </div>
                 <div class="animal-subcard-status">
                   ${anim.isBaby
-                    ? `🍼 Baby Calf/Chick (${Math.floor(anim.growth * 100)}% Grown)
+                    ? `🍼 Baby (${Math.floor(anim.growth * 100)}% Grown)
                        <div class="mini-progress-bar">
                          <div class="mini-progress-fill" style="width:${Math.floor(anim.growth * 100)}%"></div>
                        </div>`
                     : anim.cooldown > 0
                     ? `⏳ Resting from breeding (${Math.ceil(anim.cooldown)}s)`
-                    : `💖 Adult • Ready to Breed`
+                    : `💖 Adult • Healthy & Active`
                   }
                 </div>
               </div>
@@ -485,15 +612,35 @@ class UIController {
 
       if (isUnlocked) {
         card.querySelector(`#feed-${item.id}`).addEventListener('click', () => {
-          this.gameState.addCoins(item.id === 'cow' ? 60 : item.id === 'chicken' ? 35 : 140);
-          this.gameState.addItem(item.id === 'cow' ? 'milk' : item.id === 'chicken' ? 'eggs' : 'wool', 1);
-          if (window.soundEngine) window.soundEngine.playAnimal(item.id);
-          this.showFloatNum(`Fed! +Bonus Goods 📦`, window.innerWidth / 2, window.innerHeight / 2);
+          let earnCoins = 30;
+          let product = 'milk';
+          if (item.id === 'cow_buffalo') { earnCoins = 70; product = 'milk'; }
+          else if (item.id === 'goat') { earnCoins = 55; product = 'cheese'; }
+          else if (item.id === 'chicken') { earnCoins = 35; product = 'eggs'; }
+          else if (item.id === 'horse') { earnCoins = 90; product = 'wheat'; }
+          else if (item.id === 'dog') { earnCoins = 30; product = 'bone'; }
+
+          // Heat penalty if hot weather and not sheltered
+          if (this.gameState.isHotWeather && !this.gameState.animalsSheltered) {
+            earnCoins = Math.floor(earnCoins * 0.45);
+            this.showFloatNum(`⚠️ Heat Stress! Reduced Yield: +${earnCoins}🪙`, window.innerWidth / 2, window.innerHeight / 2);
+          } else {
+            this.showFloatNum(`Fed! +${earnCoins} 🪙 +Goods 📦`, window.innerWidth / 2, window.innerHeight / 2);
+          }
+
+          this.gameState.addCoins(earnCoins);
+          this.gameState.addItem(product, 1);
+          if (window.soundEngine) {
+            window.soundEngine.playAnimal(item.id === 'cow_buffalo' ? 'cow' : item.id);
+          }
         });
 
-        card.querySelector(`#go-breed-${item.id}`).addEventListener('click', () => {
-          this.selectBreedingPen(item.id);
-        });
+        const breedBtn = card.querySelector(`#go-breed-${item.id}`);
+        if (breedBtn) {
+          breedBtn.addEventListener('click', () => {
+            this.selectBreedingPen(item.id);
+          });
+        }
 
         penAnimals.forEach(anim => {
           if (anim.isBaby) {
@@ -520,7 +667,9 @@ class UIController {
       } else if (canBuy) {
         card.querySelector(`#buy-animal-${item.id}`).addEventListener('click', () => {
           this.gameState.coins -= item.cost;
-          this.gameState.unlockedAnimals.push(item.id);
+          if (!this.gameState.unlockedAnimals.includes(item.id)) {
+            this.gameState.unlockedAnimals.push(item.id);
+          }
           this.gameState.save();
           this.updateTopBar();
           const p = this.farmWorld.animals.find(a => a.type === item.id);
@@ -541,9 +690,10 @@ class UIController {
     const speciesRow = document.createElement('div');
     speciesRow.className = 'species-pills-row';
     const speciesOptions = [
-      { id: 'cow', name: '🐄 Cows' },
+      { id: 'cow_buffalo', name: '🐄 Cows & Buffaloes' },
+      { id: 'goat', name: '🐐 Goats' },
       { id: 'chicken', name: '🐔 Chickens' },
-      { id: 'sheep', name: '🐑 Sheep' }
+      { id: 'horse', name: '🐎 Horses' }
     ];
     speciesRow.innerHTML = speciesOptions.map(sp => `
       <button class="species-pill ${this.selectedBreedingPen === sp.id ? 'active' : ''}" id="sp-btn-${sp.id}">
@@ -557,6 +707,9 @@ class UIController {
         this.selectedBreedingPen = sp.id;
         this.parent1Id = null;
         this.parent2Id = null;
+        if (window.soundEngine) {
+          window.soundEngine.playBreedingSelect(sp.id === 'cow_buffalo' ? 'cow' : sp.id);
+        }
         this.sheetBody.innerHTML = '';
         this.renderAnimalsSheet();
       });
@@ -628,7 +781,7 @@ class UIController {
     }
 
     // 3. Breeding Pair Selection Box
-    const allPenAnimals = this.gameState.animalsData.filter(a => a.penType === this.selectedBreedingPen);
+    const allPenAnimals = this.gameState.animalsData.filter(a => a.penType === this.selectedBreedingPen || (this.selectedBreedingPen === 'cow_buffalo' && (a.penType === 'cow' || a.penType === 'cow_buffalo')));
     const adultAnimals = allPenAnimals.filter(a => !a.isBaby);
 
     const pairBox = document.createElement('div');
@@ -638,7 +791,7 @@ class UIController {
       pairBox.innerHTML = `
         <div class="breeding-pair-title">💕 Select Breeding Pair</div>
         <p style="font-size:0.82rem; color:var(--text-sub); line-height:1.4;">
-          You need at least 2 adult ${this.selectedBreedingPen}s in the pen to initiate breeding.
+          You need at least 2 adult animals in this pen to initiate breeding.
           Unlock the pen or wait for babies to mature!
         </p>
       `;
@@ -703,11 +856,11 @@ class UIController {
             <span style="color:#cfd8dc; font-weight:800;">${commonChance}%</span>
           </div>
           <div class="genetics-row">
-            <span>✨ Rare Breed (e.g. Jersey/Silkie/Cotton Candy):</span>
+            <span>✨ Rare Breed (e.g. Jersey/Silkie/Mustang):</span>
             <span style="color:#e1bee7; font-weight:800;">${rareChance}%</span>
           </div>
           <div class="genetics-row">
-            <span>⭐ Legendary Mutation (Celestial/Phoenix/Prism):</span>
+            <span>⭐ Legendary Mutation (Celestial/Pegasus/Prism):</span>
             <span style="color:#ffd54f; font-weight:800;">${mutChance}%</span>
           </div>
           <div class="genetics-row" style="margin-top:6px; padding-top:6px; border-top:1px dashed rgba(255,255,255,0.1);">
@@ -735,11 +888,19 @@ class UIController {
 
       pairBox.querySelector('#parent1-select').addEventListener('change', (e) => {
         this.parent1Id = e.target.value;
+        const chosen = adultAnimals.find(a => a.id === this.parent1Id);
+        if (window.soundEngine && chosen) {
+          window.soundEngine.playBreedingSelect(chosen.type || (this.selectedBreedingPen === 'cow_buffalo' ? 'cow' : this.selectedBreedingPen));
+        }
         this.sheetBody.innerHTML = '';
         this.renderAnimalsSheet();
       });
       pairBox.querySelector('#parent2-select').addEventListener('change', (e) => {
         this.parent2Id = e.target.value;
+        const chosen = adultAnimals.find(a => a.id === this.parent2Id);
+        if (window.soundEngine && chosen) {
+          window.soundEngine.playBreedingSelect(chosen.type || (this.selectedBreedingPen === 'cow_buffalo' ? 'cow' : this.selectedBreedingPen));
+        }
         this.sheetBody.innerHTML = '';
         this.renderAnimalsSheet();
       });
@@ -1188,6 +1349,52 @@ class UIController {
     setTimeout(() => {
       this.levelUpToast.style.display = 'none';
     }, 3500);
+  }
+
+  // ANIMAL WEATHER & NIGHT CARE HUD SYSTEM
+  showHotWeatherAlert(isHot) {
+    this.updateCareHUD();
+  }
+
+  updateCareHUD() {
+    const hudCareCard = document.getElementById('hud-care-card');
+    const hudCareIcon = document.getElementById('hud-care-icon');
+    const hudCareTitle = document.getElementById('hud-care-title');
+    const hudCareDesc = document.getElementById('hud-care-desc');
+    const hudCareBtn = document.getElementById('hud-care-action-btn');
+    if (!hudCareCard || !hudCareBtn) return;
+
+    if (this.gameState.isHotWeather) {
+      hudCareCard.style.display = 'flex';
+      hudCareCard.style.borderColor = '#ff9800';
+      if (hudCareIcon) hudCareIcon.textContent = '☀️';
+      if (hudCareTitle) hudCareTitle.textContent = 'Scorching Afternoon Sun!';
+      if (this.gameState.animalsSheltered) {
+        if (hudCareDesc) hudCareDesc.textContent = '✅ Animals resting in shade! Full production preserved.';
+        hudCareBtn.textContent = '🌿 Let Roam';
+        hudCareBtn.style.background = 'linear-gradient(135deg, #4caf50, #2e7d32)';
+      } else {
+        if (hudCareDesc) hudCareDesc.textContent = '⚠️ Move animals into shaded shelters or yields drop by 55%!';
+        hudCareBtn.textContent = '🛖 Move to Shelter';
+        hudCareBtn.style.background = 'linear-gradient(135deg, #ff9800, #f57c00)';
+      }
+    } else if (this.gameState.chickensInCoop) {
+      hudCareCard.style.display = 'flex';
+      hudCareCard.style.borderColor = '#29b6f6';
+      if (hudCareIcon) hudCareIcon.textContent = '🐔';
+      if (hudCareTitle) hudCareTitle.textContent = 'Night Chicken Coop & Safety';
+      if (this.gameState.chickenCoopLocked) {
+        if (hudCareDesc) hudCareDesc.textContent = '🔒 Coop locked securely! Chickens protected overnight.';
+        hudCareBtn.textContent = '🔓 Unlock Coop';
+        hudCareBtn.style.background = 'linear-gradient(135deg, #2196f3, #1976d2)';
+      } else {
+        if (hudCareDesc) hudCareDesc.textContent = '🚪 Chickens are roosting inside. Lock the coop at night!';
+        hudCareBtn.textContent = '🔒 Lock Coop';
+        hudCareBtn.style.background = 'linear-gradient(135deg, #e91e63, #c2185b)';
+      }
+    } else {
+      hudCareCard.style.display = 'none';
+    }
   }
 }
 

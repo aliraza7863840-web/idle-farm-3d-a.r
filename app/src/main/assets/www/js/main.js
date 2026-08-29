@@ -99,18 +99,35 @@ function initGame() {
 
   let isNight = false;
   let dayNightTimer = 0;
-  const cycleDuration = 90; // 90 seconds full day-night cycle
+  const DAY_LENGTH = 180.0;  // 3 minutes daytime
+  const NIGHT_LENGTH = 15.0; // 15 seconds night
+  const TOTAL_CYCLE = DAY_LENGTH + NIGHT_LENGTH; // 195s cycle
 
   window.toggleDayNight = () => {
     isNight = !isNight;
-    applyDayNight(isNight ? 1 : 0);
+    if (isNight) {
+      dayNightTimer = DAY_LENGTH;
+      applyDayNight(1.0);
+    } else {
+      dayNightTimer = 0;
+      applyDayNight(0.0);
+    }
     return isNight;
   };
 
   function applyDayNight(nightFactor) {
     const daySky = new THREE.Color(0x81d4fa);
+    const duskSky = new THREE.Color(0xff8a65); // Warm sunset golden-orange
     const nightSky = new THREE.Color(0x0a1128);
-    const currentSky = daySky.clone().lerp(nightSky, nightFactor);
+
+    // Warm sunset gradient during transition
+    let currentSky;
+    if (nightFactor > 0.05 && nightFactor < 0.85) {
+      const sunsetProgress = Math.sin(((nightFactor - 0.05) / 0.8) * Math.PI);
+      currentSky = daySky.clone().lerp(duskSky, sunsetProgress * 0.75).lerp(nightSky, nightFactor);
+    } else {
+      currentSky = daySky.clone().lerp(nightSky, nightFactor);
+    }
 
     scene.background.copy(currentSky);
     scene.fog.color.copy(currentSky);
@@ -118,12 +135,12 @@ function initGame() {
     const dayAmb = new THREE.Color(0xffffff);
     const nightAmb = new THREE.Color(0x334466);
     ambientLight.color.copy(dayAmb.clone().lerp(nightAmb, nightFactor));
-    ambientLight.intensity = 0.78 - nightFactor * 0.4;
+    ambientLight.intensity = 0.78 - nightFactor * 0.42;
 
     const daySun = new THREE.Color(0xfffaed);
     const nightSun = new THREE.Color(0x90caf9);
     sunLight.color.copy(daySun.clone().lerp(nightSun, nightFactor));
-    sunLight.intensity = 1.25 - nightFactor * 0.75;
+    sunLight.intensity = 1.25 - nightFactor * 0.8;
   }
 
   // --- Initialize Audio Engine ---
@@ -387,14 +404,54 @@ function initGame() {
     const delta = Math.min((now - lastTime) / 1000, 0.1);
     lastTime = now;
 
-    // Automated Day-Night Progression
-    dayNightTimer += delta;
-    const cycleProgress = (dayNightTimer % cycleDuration) / cycleDuration;
-    const smoothNight = Math.sin(cycleProgress * Math.PI * 2);
-    const autoNightFactor = Math.max(0, -smoothNight);
+    // Automated Day-Night Progression (Day: 180s = 3 mins, Night: 15s = 0.25 mins)
+    dayNightTimer = (dayNightTimer + delta) % TOTAL_CYCLE;
 
-    const activeNight = isNight || autoNightFactor > 0.4;
+    let autoNightFactor = 0;
+    if (dayNightTimer < DAY_LENGTH) {
+      // Daytime: 0s to 180s
+      if (dayNightTimer > DAY_LENGTH - 8.0) {
+        // Smooth 8-second sunset transition into dusk and night
+        autoNightFactor = (dayNightTimer - (DAY_LENGTH - 8.0)) / 8.0;
+      } else {
+        autoNightFactor = 0;
+      }
+
+      // Hot Weather Care System:
+      // Around mid-afternoon (75s to 155s of daytime), the sun reaches peak heat!
+      const isAfternoonHot = (dayNightTimer >= 75.0 && dayNightTimer <= 155.0);
+      const isSunCondition = weatherSystem && (weatherSystem.currentWeather === 'sunny' || weatherSystem.currentWeather === 'partly_cloudy');
+      gameState.setHotWeather(isAfternoonHot && isSunCondition);
+
+      // Morning coop opening: if coop is not locked, chickens come out
+      if (!gameState.chickenCoopLocked && dayNightTimer < 165.0) {
+        gameState.setChickensInCoop(false);
+      }
+    } else {
+      // Nighttime: 180s to 195s (15 seconds)
+      const nightTime = dayNightTimer - DAY_LENGTH;
+      if (nightTime > NIGHT_LENGTH - 3.0) {
+        // Smooth quick 3-second dawn transition back into morning
+        autoNightFactor = 1.0 - (nightTime - (NIGHT_LENGTH - 3.0)) / 3.0;
+      } else {
+        autoNightFactor = 1.0;
+      }
+
+      // Hot weather ends during cool night
+      gameState.setHotWeather(false);
+
+      // Night Chicken Routine: Chickens automatically go inside the coop to stay safe
+      gameState.setChickensInCoop(true);
+    }
+
+    const activeNight = isNight || autoNightFactor > 0.35;
     applyDayNight(isNight ? 1 : autoNightFactor);
+
+    // Keep Day/Night button icon synced
+    const btnDayNight = document.getElementById('btn-daynight');
+    if (btnDayNight && !isNight) {
+      btnDayNight.textContent = activeNight ? '🌙' : '☀️';
+    }
 
     // Update Subsystems
     weatherSystem.update(delta, activeNight);

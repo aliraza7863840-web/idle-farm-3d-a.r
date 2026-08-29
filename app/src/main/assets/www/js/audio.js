@@ -237,30 +237,215 @@ class SoundEngine {
     const gain = this.ctx.createGain();
 
     if (type === 'cow') {
+      // Warm resonant cow moo
       osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(130, t);
-      osc.frequency.linearRampToValueAtTime(110, t + 0.4);
-      gain.gain.setValueAtTime(0.15, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+      osc.frequency.setValueAtTime(140, t);
+      osc.frequency.linearRampToValueAtTime(115, t + 0.35);
+      osc.frequency.linearRampToValueAtTime(95, t + 0.55);
+      gain.gain.setValueAtTime(0.001, t);
+      gain.gain.linearRampToValueAtTime(0.18, t + 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.6);
+    } else if (type === 'buffalo') {
+      // Deep powerful buffalo bellow
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(95, t);
+      osc.frequency.linearRampToValueAtTime(78, t + 0.45);
+      osc.frequency.linearRampToValueAtTime(65, t + 0.7);
+      gain.gain.setValueAtTime(0.001, t);
+      gain.gain.linearRampToValueAtTime(0.24, t + 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.75);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.75);
+    } else if (type === 'goat') {
+      // Cheerful bleat ("meh-eh-eh")
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(320, t);
+      osc.frequency.linearRampToValueAtTime(360, t + 0.08);
+      osc.frequency.linearRampToValueAtTime(290, t + 0.18);
+      osc.frequency.linearRampToValueAtTime(330, t + 0.28);
+      osc.frequency.linearRampToValueAtTime(270, t + 0.4);
+      gain.gain.setValueAtTime(0.001, t);
+      gain.gain.linearRampToValueAtTime(0.17, t + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.42);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.42);
     } else if (type === 'chicken') {
+      // Perky cluck-cluck
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(600, t);
-      osc.frequency.exponentialRampToValueAtTime(900, t + 0.08);
-      osc.frequency.exponentialRampToValueAtTime(500, t + 0.15);
-      gain.gain.setValueAtTime(0.18, t);
+      osc.frequency.setValueAtTime(620, t);
+      osc.frequency.exponentialRampToValueAtTime(940, t + 0.07);
+      osc.frequency.exponentialRampToValueAtTime(480, t + 0.16);
+      gain.gain.setValueAtTime(0.001, t);
+      gain.gain.linearRampToValueAtTime(0.20, t + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.18);
+    } else if (type === 'horse') {
+      // Gentle friendly horse whinny
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(420, t);
+      osc.frequency.linearRampToValueAtTime(620, t + 0.12);
+      osc.frequency.linearRampToValueAtTime(460, t + 0.24);
+      osc.frequency.linearRampToValueAtTime(540, t + 0.36);
+      osc.frequency.linearRampToValueAtTime(380, t + 0.52);
+      gain.gain.setValueAtTime(0.001, t);
+      gain.gain.linearRampToValueAtTime(0.16, t + 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.55);
+    } else if (type === 'dog') {
+      // Playful friendly woof
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(260, t);
+      osc.frequency.exponentialRampToValueAtTime(140, t + 0.14);
+      gain.gain.setValueAtTime(0.001, t);
+      gain.gain.linearRampToValueAtTime(0.22, t + 0.03);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.16);
     } else {
+      // Default sheep baa
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(280, t);
-      osc.frequency.linearRampToValueAtTime(220, t + 0.25);
+      osc.frequency.linearRampToValueAtTime(220, t + 0.28);
       gain.gain.setValueAtTime(0.14, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.32);
     }
+  }
+
+  // Breeding animal selection audio cue
+  playBreedingSelect(type) {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const t = this.ctx.currentTime;
+    // 1. Sweet selection harp chime (love duo notes)
+    [587.33, 880.00].forEach((freq, i) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t + i * 0.05);
+
+      gain.gain.setValueAtTime(0.16, t + i * 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.05 + 0.25);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(t + i * 0.05);
+      osc.stop(t + i * 0.05 + 0.25);
+    });
+
+    // 2. Pair with distinctive animal vocal cue shortly after
+    setTimeout(() => {
+      this.playAnimal(type);
+    }, 70);
+  }
+
+  // Sparkling 'New Life' chime when a baby animal is spawned
+  playNewLifeChime() {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const t = this.ctx.currentTime;
+    // Uplifting multi-octave celestial chime arpeggio (C5 -> E5 -> G5 -> B5 -> C6 -> E6 -> G6)
+    const notes = [523.25, 659.25, 783.99, 987.77, 1046.50, 1318.51, 1567.98];
+    notes.forEach((freq, i) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t + i * 0.055);
+
+      gain.gain.setValueAtTime(0.24, t + i * 0.055);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.055 + 0.55);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(t + i * 0.055);
+      osc.stop(t + i * 0.055 + 0.55);
+    });
+
+    // Warm bell swell underneath
+    const bassOsc = this.ctx.createOscillator();
+    const bassGain = this.ctx.createGain();
+    bassOsc.type = 'triangle';
+    bassOsc.frequency.setValueAtTime(261.63, t); // C4
+    bassGain.gain.setValueAtTime(0.18, t);
+    bassGain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
+    bassOsc.connect(bassGain);
+    bassGain.connect(this.ctx.destination);
+    bassOsc.start(t);
+    bassOsc.stop(t + 0.8);
+  }
+
+  playBabyBirth() {
+    this.playNewLifeChime();
+  }
+
+  // Chicken coop latch lock/unlock sound
+  playCoopLatch(locked) {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(locked ? 420 : 280, t);
+    osc.frequency.exponentialRampToValueAtTime(locked ? 210 : 520, t + 0.08);
+
+    gain.gain.setValueAtTime(0.14, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
 
     osc.connect(gain);
     gain.connect(this.ctx.destination);
     osc.start(t);
-    osc.stop(t + 0.45);
+    osc.stop(t + 0.1);
+  }
+
+  // Whistle call to guide animals into or out of shelters
+  playShelterCall() {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, t);
+    osc.frequency.linearRampToValueAtTime(1174.66, t + 0.15);
+    osc.frequency.linearRampToValueAtTime(987.77, t + 0.32);
+
+    gain.gain.setValueAtTime(0.15, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.35);
   }
 
   startRainSound() {

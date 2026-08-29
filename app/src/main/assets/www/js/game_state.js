@@ -31,7 +31,10 @@ class GameState {
       strawberry: 0,
       pumpkin: 0,
       milk: 0,
+      buffalo_butter: 0,
+      goat_milk: 0,
       eggs: 0,
+      horsehair: 0,
       wool: 0
     };
 
@@ -43,27 +46,48 @@ class GameState {
       manager: { name: 'Manager Alex', role: 'Farm Director', hired: false, level: 1, cost: 1500, yield: 90, timer: 0 }
     };
 
-    // Unlocked Plots & Animals
+    // Unlocked Plots & Animal Pens
     this.unlockedPlots = [0, 1]; // plot IDs
-    this.unlockedAnimals = ['cow', 'chicken'];
+    this.unlockedAnimals = ['cow_buffalo', 'goat', 'chicken', 'horse', 'dog', 'cow'];
+
+    // Hot Weather Care System
+    this.isHotWeather = false;
+    this.animalsSheltered = false;
+    this.hotCareNoticeGiven = false;
+    this.animalYieldTimer = 0;
+
+    // Chicken Night Routine & Locking System
+    this.chickenCoopLocked = false;
+    this.chickensInCoop = false;
 
     // Tutorial Progression
     this.tutorialActive = true;
     this.tutorialStep = 0;
     this.tutorialCompleted = false;
 
-    // Animal Breeding System & Livestock Roster
+    // Animal Breeding System & Livestock Roster (Separated into Pens)
     this.animalsData = [
-      // Cows (Pen 0)
-      { id: 'cow_1', type: 'cow', penType: 'cow', name: 'Bessie', breed: 'holstein', rarity: 'common', isBaby: false, growth: 1.0, cooldown: 0 },
-      { id: 'cow_2', type: 'cow', penType: 'cow', name: 'Daisy', breed: 'holstein', rarity: 'common', isBaby: false, growth: 1.0, cooldown: 0 },
-      // Chickens (Pen 1)
+      // 1. Cows and Buffaloes (Big Pen near crops)
+      { id: 'cow_1', type: 'cow', penType: 'cow_buffalo', name: 'Bessie', breed: 'holstein', rarity: 'common', isBaby: false, growth: 1.0, cooldown: 0 },
+      { id: 'cow_2', type: 'cow', penType: 'cow_buffalo', name: 'Daisy', breed: 'jersey', rarity: 'rare', isBaby: false, growth: 1.0, cooldown: 0 },
+      { id: 'buf_1', type: 'buffalo', penType: 'cow_buffalo', name: 'Buraq', breed: 'murrah', rarity: 'common', isBaby: false, growth: 1.0, cooldown: 0 },
+      { id: 'buf_2', type: 'buffalo', penType: 'cow_buffalo', name: 'Bahadur', breed: 'nili_ravi', rarity: 'rare', isBaby: false, growth: 1.0, cooldown: 0 },
+
+      // 2. Goats Pen (Mountain-style pen near crops)
+      { id: 'goat_1', type: 'goat', penType: 'goat', name: 'Billy', breed: 'alpine', rarity: 'common', isBaby: false, growth: 1.0, cooldown: 0 },
+      { id: 'goat_2', type: 'goat', penType: 'goat', name: 'Nanny', breed: 'boer', rarity: 'rare', isBaby: false, growth: 1.0, cooldown: 0 },
+
+      // 3. Chickens Area (Scratch area & elevated coop near crops)
       { id: 'chk_1', type: 'chicken', penType: 'chicken', name: 'Pip', breed: 'leghorn', rarity: 'common', isBaby: false, growth: 1.0, cooldown: 0 },
-      { id: 'chk_2', type: 'chicken', penType: 'chicken', name: 'Clucky', breed: 'leghorn', rarity: 'common', isBaby: false, growth: 1.0, cooldown: 0 },
-      { id: 'chk_3', type: 'chicken', penType: 'chicken', name: 'Penny', breed: 'leghorn', rarity: 'common', isBaby: false, growth: 1.0, cooldown: 0 },
-      // Sheep (Pen 2)
-      { id: 'shp_1', type: 'sheep', penType: 'sheep', name: 'Woolly', breed: 'merino', rarity: 'common', isBaby: false, growth: 1.0, cooldown: 0 },
-      { id: 'shp_2', type: 'sheep', penType: 'sheep', name: 'Cotton', breed: 'merino', rarity: 'common', isBaby: false, growth: 1.0, cooldown: 0 }
+      { id: 'chk_2', type: 'chicken', penType: 'chicken', name: 'Clucky', breed: 'silkie', rarity: 'rare', isBaby: false, growth: 1.0, cooldown: 0 },
+      { id: 'chk_3', type: 'chicken', penType: 'chicken', name: 'Penny', breed: 'phoenix', rarity: 'legendary', isBaby: false, growth: 1.0, cooldown: 0 },
+
+      // 4. Horses Space (Equestrian paddock near crops)
+      { id: 'hrs_1', type: 'horse', penType: 'horse', name: 'Spirit', breed: 'mustang', rarity: 'common', isBaby: false, growth: 1.0, cooldown: 0 },
+      { id: 'hrs_2', type: 'horse', penType: 'horse', name: 'Thunder', breed: 'appaloosa', rarity: 'rare', isBaby: false, growth: 1.0, cooldown: 0 },
+
+      // 5. Dog Kennel (Farm protector doghouse)
+      { id: 'dog_1', type: 'dog', penType: 'dog', name: 'Barnaby', breed: 'shepherd', rarity: 'common', isBaby: false, growth: 1.0, cooldown: 0 }
     ];
 
     this.activeBreedings = []; // Active breeding sessions
@@ -130,12 +154,38 @@ class GameState {
         if (d.inventory) this.inventory = { ...this.inventory, ...d.inventory };
         if (d.workers) this.workers = { ...this.workers, ...d.workers };
         if (d.unlockedPlots) this.unlockedPlots = d.unlockedPlots;
-        if (d.unlockedAnimals) this.unlockedAnimals = d.unlockedAnimals;
+        if (d.unlockedAnimals) {
+          this.unlockedAnimals = d.unlockedAnimals;
+          if (!this.unlockedAnimals.includes('cow_buffalo')) this.unlockedAnimals.push('cow_buffalo');
+          if (!this.unlockedAnimals.includes('goat')) this.unlockedAnimals.push('goat');
+          if (!this.unlockedAnimals.includes('horse')) this.unlockedAnimals.push('horse');
+          if (!this.unlockedAnimals.includes('dog')) this.unlockedAnimals.push('dog');
+        }
         if (d.tutorialActive !== undefined) this.tutorialActive = d.tutorialActive;
         if (d.tutorialStep !== undefined) this.tutorialStep = d.tutorialStep;
         if (d.tutorialCompleted !== undefined) this.tutorialCompleted = d.tutorialCompleted;
         if (d.animalsData && Array.isArray(d.animalsData) && d.animalsData.length > 0) {
+          d.animalsData.forEach(a => {
+            if (a.penType === 'cow') a.penType = 'cow_buffalo';
+          });
           this.animalsData = d.animalsData;
+
+          // Ensure all required species (buffalo, goat, horse, dog) are present
+          const existingIds = new Set(this.animalsData.map(a => a.id));
+          const missingDefaults = [
+            { id: 'buf_1', type: 'buffalo', penType: 'cow_buffalo', name: 'Buraq', breed: 'murrah', rarity: 'common', isBaby: false, growth: 1.0, cooldown: 0 },
+            { id: 'buf_2', type: 'buffalo', penType: 'cow_buffalo', name: 'Bahadur', breed: 'nili_ravi', rarity: 'rare', isBaby: false, growth: 1.0, cooldown: 0 },
+            { id: 'goat_1', type: 'goat', penType: 'goat', name: 'Billy', breed: 'alpine', rarity: 'common', isBaby: false, growth: 1.0, cooldown: 0 },
+            { id: 'goat_2', type: 'goat', penType: 'goat', name: 'Nanny', breed: 'boer', rarity: 'rare', isBaby: false, growth: 1.0, cooldown: 0 },
+            { id: 'hrs_1', type: 'horse', penType: 'horse', name: 'Spirit', breed: 'mustang', rarity: 'common', isBaby: false, growth: 1.0, cooldown: 0 },
+            { id: 'hrs_2', type: 'horse', penType: 'horse', name: 'Thunder', breed: 'appaloosa', rarity: 'rare', isBaby: false, growth: 1.0, cooldown: 0 },
+            { id: 'dog_1', type: 'dog', penType: 'dog', name: 'Barnaby', breed: 'shepherd', rarity: 'common', isBaby: false, growth: 1.0, cooldown: 0 }
+          ];
+          missingDefaults.forEach(def => {
+            if (!existingIds.has(def.id) && !this.animalsData.some(a => a.type === def.type)) {
+              this.animalsData.push(def);
+            }
+          });
         }
         if (d.activeBreedings && Array.isArray(d.activeBreedings)) {
           this.activeBreedings = d.activeBreedings;
@@ -306,7 +356,12 @@ class GameState {
       this.workers.rancher.timer += delta;
       if (this.workers.rancher.timer >= 5.5 / this.workers.rancher.level) {
         this.workers.rancher.timer = 0;
-        workerEarnings += 30 * this.workers.rancher.level;
+        let rancherEarn = 30 * this.workers.rancher.level;
+        // Hot weather care penalty: 50% loss if player doesn't shelter animals!
+        if (this.isHotWeather && !this.animalsSheltered) {
+          rancherEarn = Math.floor(rancherEarn * 0.45);
+        }
+        workerEarnings += rancherEarn;
       }
     }
 
@@ -333,6 +388,53 @@ class GameState {
         this.coins += finalCoin;
         this.addXP(Math.ceil(finalCoin * 0.15));
         if (window.uiController) window.uiController.updateTopBar();
+      }
+    }
+
+    // Animal Goods Yield Cycle (Milk, Eggs, Wool, Coins)
+    this.animalYieldTimer += delta;
+    if (this.animalYieldTimer >= 14.0) {
+      this.animalYieldTimer = 0;
+      let totalYieldCoins = 0;
+      let milkYield = 0;
+      let eggsYield = 0;
+      let otherYield = 0;
+
+      // Penalty applied if hot weather and player did NOT move animals to shelter!
+      const penaltyMult = (this.isHotWeather && !this.animalsSheltered) ? 0.45 : 1.0;
+
+      this.animalsData.forEach(a => {
+        if (a.isBaby) return;
+        if (a.penType === 'cow_buffalo') {
+          totalYieldCoins += Math.floor((a.type === 'buffalo' ? 32 : 25) * penaltyMult);
+          if (Math.random() < 0.6 * penaltyMult) milkYield++;
+        } else if (a.penType === 'chicken') {
+          totalYieldCoins += Math.floor(16 * penaltyMult);
+          if (Math.random() < 0.7 * penaltyMult) eggsYield++;
+        } else if (a.penType === 'goat') {
+          totalYieldCoins += Math.floor(22 * penaltyMult);
+          if (Math.random() < 0.5 * penaltyMult) otherYield++;
+        } else if (a.penType === 'horse') {
+          totalYieldCoins += Math.floor(30 * penaltyMult);
+        } else if (a.penType === 'dog') {
+          totalYieldCoins += Math.floor(12 * penaltyMult);
+        }
+      });
+
+      if (totalYieldCoins > 0) {
+        this.coins += totalYieldCoins;
+        if (milkYield > 0) this.addItem('milk', milkYield);
+        if (eggsYield > 0) this.addItem('eggs', eggsYield);
+        if (otherYield > 0) this.addItem('wool', otherYield);
+
+        if (window.uiController) {
+          window.uiController.updateTopBar();
+          if (this.isHotWeather && !this.animalsSheltered) {
+            window.uiController.showFloatingText(`⚠️ Heat Stress! Yields reduced by 55%! Move animals to shelter!`, window.innerWidth / 2, window.innerHeight / 2 - 40);
+          } else if (this.isHotWeather && this.animalsSheltered) {
+            window.uiController.showFloatingText(`🛖 Sheltered Animals Safe in Shade: +${totalYieldCoins}🪙 +Goods!`, window.innerWidth / 2, window.innerHeight / 2 - 40);
+          }
+        }
       }
     }
 
@@ -431,18 +533,24 @@ class GameState {
 
     if (roll < mutationThreshold) {
       rarity = 'legendary';
-      if (penType === 'cow') breedKey = 'celestial';
+      if (penType === 'cow' || penType === 'cow_buffalo') breedKey = 'celestial';
+      else if (penType === 'goat') breedKey = 'nebula_goat';
       else if (penType === 'chicken') breedKey = 'phoenix';
+      else if (penType === 'horse') breedKey = 'pegasus_flame';
       else breedKey = 'prism';
     } else if (roll < rareThreshold) {
       rarity = 'rare';
-      if (penType === 'cow') breedKey = 'jersey';
+      if (penType === 'cow' || penType === 'cow_buffalo') breedKey = 'jersey';
+      else if (penType === 'goat') breedKey = 'boer';
       else if (penType === 'chicken') breedKey = 'silkie';
+      else if (penType === 'horse') breedKey = 'appaloosa';
       else breedKey = 'cotton_candy';
     } else {
       rarity = 'common';
-      if (penType === 'cow') breedKey = 'holstein';
+      if (penType === 'cow' || penType === 'cow_buffalo') breedKey = 'holstein';
+      else if (penType === 'goat') breedKey = 'alpine';
       else if (penType === 'chicken') breedKey = 'leghorn';
+      else if (penType === 'horse') breedKey = 'mustang';
       else breedKey = 'merino';
     }
 
@@ -508,7 +616,12 @@ class GameState {
 
     const babyNames = {
       cow: ['Buttercup', 'Milky Way', 'Spot', 'Clover', 'Toffee', 'Honey', 'Luna', 'Nova', 'Cocoa'],
+      cow_buffalo: ['Buttercup', 'Milky Way', 'Spot', 'Bhim', 'Thunder', 'Shadow', 'Sultan', 'Toffee'],
+      buffalo: ['Titan', 'Bhim', 'Thunder', 'Shadow', 'Sultan', 'Ranger', 'Bullock'],
+      goat: ['Kiddo', 'Pip', 'Ziggy', 'Nutmeg', 'Clover', 'Bambi', 'Buttons', 'Whiskers'],
       chicken: ['Nugget', 'Sunny', 'Peep', 'Feather', 'Goldie', 'Chirpy', 'Pico', 'Ruby'],
+      horse: ['Star', 'Flash', 'Comet', 'Blaze', 'Copper', 'Duchess', 'Champion', 'Peggy'],
+      dog: ['Buddy', 'Max', 'Scout', 'Rocky', 'Bailey', 'Cooper', 'Rusty'],
       sheep: ['Fluffy', 'Cloud', 'Marshmallow', 'Pom-Pom', 'Snowball', 'Sugar', 'Candy', 'Pixie']
     };
     const namePool = babyNames[b.penType] || ['Baby'];
@@ -516,7 +629,7 @@ class GameState {
 
     const newAnimal = {
       id: `${b.penType}_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-      type: b.penType,
+      type: b.penType === 'cow_buffalo' ? 'cow' : b.penType,
       penType: b.penType,
       name: chosenName,
       breed: b.resultBreed,
@@ -537,11 +650,73 @@ class GameState {
       window.farmWorld.syncAnimals(this.animalsData);
     }
 
-    if (window.soundEngine && window.soundEngine.playBabyBirth) {
+    // Play sparkling 'New Life' chime when baby is spawned
+    if (window.soundEngine && window.soundEngine.playNewLifeChime) {
+      window.soundEngine.playNewLifeChime();
+    } else if (window.soundEngine && window.soundEngine.playBabyBirth) {
       window.soundEngine.playBabyBirth();
     }
 
     return newAnimal;
+  }
+
+  // Hot Weather Care System
+  setHotWeather(isHot) {
+    if (this.isHotWeather === isHot) return;
+    this.isHotWeather = isHot;
+    if (isHot) {
+      if (window.uiController && !this.hotCareNoticeGiven) {
+        this.hotCareNoticeGiven = true;
+        window.uiController.showHotWeatherAlert(true);
+      }
+    } else {
+      this.hotCareNoticeGiven = false;
+      if (window.uiController) {
+        window.uiController.showHotWeatherAlert(false);
+      }
+    }
+  }
+
+  toggleAnimalsShelter(forceState = null) {
+    this.animalsSheltered = forceState !== null ? forceState : !this.animalsSheltered;
+    if (window.soundEngine && window.soundEngine.playShelterCall) {
+      window.soundEngine.playShelterCall();
+    }
+    if (window.farmWorld && window.farmWorld.updateAnimalShelterPositions) {
+      window.farmWorld.updateAnimalShelterPositions(this.animalsSheltered);
+    }
+    if (window.uiController && window.uiController.updateCareHUD) {
+      window.uiController.updateCareHUD();
+    }
+    this.save();
+    return this.animalsSheltered;
+  }
+
+  // Chicken Night Routine & Locking System
+  toggleChickenCoopLock() {
+    this.chickenCoopLocked = !this.chickenCoopLocked;
+    if (window.soundEngine && window.soundEngine.playCoopLatch) {
+      window.soundEngine.playCoopLatch(this.chickenCoopLocked);
+    }
+    if (window.farmWorld && window.farmWorld.updateChickenCoopState) {
+      window.farmWorld.updateChickenCoopState(this.chickenCoopLocked, this.chickensInCoop);
+    }
+    if (window.uiController && window.uiController.updateCareHUD) {
+      window.uiController.updateCareHUD();
+    }
+    this.save();
+    return this.chickenCoopLocked;
+  }
+
+  setChickensInCoop(inCoop) {
+    if (this.chickensInCoop === inCoop) return;
+    this.chickensInCoop = inCoop;
+    if (window.farmWorld && window.farmWorld.updateChickenCoopState) {
+      window.farmWorld.updateChickenCoopState(this.chickenCoopLocked, this.chickensInCoop);
+    }
+    if (window.uiController && window.uiController.updateCareHUD) {
+      window.uiController.updateCareHUD();
+    }
   }
 
   feedBaby(animalId) {
