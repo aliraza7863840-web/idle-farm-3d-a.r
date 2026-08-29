@@ -47,6 +47,27 @@ class GameState {
     this.unlockedPlots = [0, 1]; // plot IDs
     this.unlockedAnimals = ['cow', 'chicken'];
 
+    // Tutorial Progression
+    this.tutorialActive = true;
+    this.tutorialStep = 0;
+    this.tutorialCompleted = false;
+
+    // Animal Breeding System & Livestock Roster
+    this.animalsData = [
+      // Cows (Pen 0)
+      { id: 'cow_1', type: 'cow', penType: 'cow', name: 'Bessie', breed: 'holstein', rarity: 'common', isBaby: false, growth: 1.0, cooldown: 0 },
+      { id: 'cow_2', type: 'cow', penType: 'cow', name: 'Daisy', breed: 'holstein', rarity: 'common', isBaby: false, growth: 1.0, cooldown: 0 },
+      // Chickens (Pen 1)
+      { id: 'chk_1', type: 'chicken', penType: 'chicken', name: 'Pip', breed: 'leghorn', rarity: 'common', isBaby: false, growth: 1.0, cooldown: 0 },
+      { id: 'chk_2', type: 'chicken', penType: 'chicken', name: 'Clucky', breed: 'leghorn', rarity: 'common', isBaby: false, growth: 1.0, cooldown: 0 },
+      { id: 'chk_3', type: 'chicken', penType: 'chicken', name: 'Penny', breed: 'leghorn', rarity: 'common', isBaby: false, growth: 1.0, cooldown: 0 },
+      // Sheep (Pen 2)
+      { id: 'shp_1', type: 'sheep', penType: 'sheep', name: 'Woolly', breed: 'merino', rarity: 'common', isBaby: false, growth: 1.0, cooldown: 0 },
+      { id: 'shp_2', type: 'sheep', penType: 'sheep', name: 'Cotton', breed: 'merino', rarity: 'common', isBaby: false, growth: 1.0, cooldown: 0 }
+    ];
+
+    this.activeBreedings = []; // Active breeding sessions
+
     this.lastSaveTime = Date.now();
     this.offlineEarnings = null;
 
@@ -73,6 +94,11 @@ class GameState {
       workers: this.workers,
       unlockedPlots: this.unlockedPlots,
       unlockedAnimals: this.unlockedAnimals,
+      tutorialActive: this.tutorialActive,
+      tutorialStep: this.tutorialStep,
+      tutorialCompleted: this.tutorialCompleted,
+      animalsData: this.animalsData,
+      activeBreedings: this.activeBreedings,
       lastSaveTime: Date.now()
     };
     try {
@@ -105,6 +131,15 @@ class GameState {
         if (d.workers) this.workers = { ...this.workers, ...d.workers };
         if (d.unlockedPlots) this.unlockedPlots = d.unlockedPlots;
         if (d.unlockedAnimals) this.unlockedAnimals = d.unlockedAnimals;
+        if (d.tutorialActive !== undefined) this.tutorialActive = d.tutorialActive;
+        if (d.tutorialStep !== undefined) this.tutorialStep = d.tutorialStep;
+        if (d.tutorialCompleted !== undefined) this.tutorialCompleted = d.tutorialCompleted;
+        if (d.animalsData && Array.isArray(d.animalsData) && d.animalsData.length > 0) {
+          this.animalsData = d.animalsData;
+        }
+        if (d.activeBreedings && Array.isArray(d.activeBreedings)) {
+          this.activeBreedings = d.activeBreedings;
+        }
         if (d.lastSaveTime) this.checkOfflineProgress(d.lastSaveTime);
       }
     } catch (e) {
@@ -300,6 +335,246 @@ class GameState {
         if (window.uiController) window.uiController.updateTopBar();
       }
     }
+
+    // Animal Cooldowns & Baby Growth Loop
+    let animalsChanged = false;
+    this.animalsData.forEach(a => {
+      if (a.cooldown > 0) {
+        a.cooldown = Math.max(0, a.cooldown - delta);
+      }
+      if (a.isBaby) {
+        a.growth += delta / 40.0; // 40s to grow to adult
+        if (a.growth >= 1.0) {
+          a.isBaby = false;
+          a.growth = 1.0;
+          animalsChanged = true;
+          if (window.uiController) {
+            window.uiController.showFloatingText(`🎉 ${a.name} Grew Into an Adult!`, window.innerWidth / 2, window.innerHeight / 2 - 40);
+          }
+        }
+      }
+    });
+
+    if (animalsChanged && window.farmWorld && window.farmWorld.syncAnimals) {
+      window.farmWorld.syncAnimals(this.animalsData);
+    }
+
+    // Active Breedings Progress
+    let breedingReadyNotice = false;
+    this.activeBreedings.forEach(b => {
+      if (!b.ready && b.remaining > 0) {
+        b.remaining = Math.max(0, b.remaining - delta);
+        if (b.remaining <= 0) {
+          b.ready = true;
+          breedingReadyNotice = true;
+        }
+      }
+    });
+
+    if (breedingReadyNotice) {
+      if (window.uiController) {
+        window.uiController.showFloatingText(`🎉 A Baby Animal is Ready in the Nursery!`, window.innerWidth / 2, window.innerHeight / 2 - 40);
+        if (window.uiController.isAnimalsSheetOpen) {
+          window.uiController.renderAnimalsSheet();
+        }
+      }
+      if (window.soundEngine && window.soundEngine.playBabyBirth) {
+        window.soundEngine.playBabyBirth();
+      }
+    }
+  }
+
+  // --- ANIMAL BREEDING ENGINE ---
+  startBreeding(penType, parent1Id, parent2Id) {
+    const parent1 = this.animalsData.find(a => a.id === parent1Id);
+    const parent2 = this.animalsData.find(a => a.id === parent2Id);
+
+    if (!parent1 || !parent2) return { success: false, reason: 'Please select two adult animals.' };
+    if (parent1.id === parent2.id) return { success: false, reason: 'Select two distinct animals.' };
+    if (parent1.type !== parent2.type || parent1.type !== penType) return { success: false, reason: 'Parents must be of the exact same species!' };
+    if (parent1.isBaby || parent2.isBaby) return { success: false, reason: 'Baby animals cannot breed until fully matured.' };
+    if (parent1.cooldown > 0 || parent2.cooldown > 0) {
+      const waitTime = Math.max(parent1.cooldown, parent2.cooldown).toFixed(0);
+      return { success: false, reason: `One of the animals is resting! Wait ${waitTime}s.` };
+    }
+
+    // Breeding cost: 60 coins
+    const cost = 60;
+    if (this.coins < cost) {
+      return { success: false, reason: `Requires ${cost} 🪙 for breeding feed!` };
+    }
+
+    this.coins -= cost;
+    parent1.cooldown = 25.0; // 25s breeding cooldown
+    parent2.cooldown = 25.0;
+
+    // Offspring genetics with mutation chance
+    const roll = Math.random();
+    let rarity = 'common';
+    let breedKey = '';
+
+    const p1Rarity = parent1.rarity || 'common';
+    const p2Rarity = parent2.rarity || 'common';
+
+    // Base mutation rates:
+    let mutationThreshold = 0.10; // 10% chance for Legendary Mutation
+    let rareThreshold = 0.32;     // 22% chance for Rare
+
+    if (p1Rarity === 'rare' || p2Rarity === 'rare') {
+      mutationThreshold += 0.06;
+      rareThreshold += 0.18;
+    }
+    if (p1Rarity === 'legendary' || p2Rarity === 'legendary') {
+      mutationThreshold += 0.16;
+      rareThreshold += 0.20;
+    }
+
+    if (roll < mutationThreshold) {
+      rarity = 'legendary';
+      if (penType === 'cow') breedKey = 'celestial';
+      else if (penType === 'chicken') breedKey = 'phoenix';
+      else breedKey = 'prism';
+    } else if (roll < rareThreshold) {
+      rarity = 'rare';
+      if (penType === 'cow') breedKey = 'jersey';
+      else if (penType === 'chicken') breedKey = 'silkie';
+      else breedKey = 'cotton_candy';
+    } else {
+      rarity = 'common';
+      if (penType === 'cow') breedKey = 'holstein';
+      else if (penType === 'chicken') breedKey = 'leghorn';
+      else breedKey = 'merino';
+    }
+
+    const duration = 12.0; // 12 seconds breeding incubation
+    const breedingId = 'brd_' + Date.now();
+
+    const breeding = {
+      id: breedingId,
+      penType: penType,
+      parent1Id: parent1Id,
+      parent2Id: parent2Id,
+      parent1Name: parent1.name,
+      parent2Name: parent2.name,
+      duration: duration,
+      remaining: duration,
+      resultBreed: breedKey,
+      resultRarity: rarity,
+      ready: false
+    };
+
+    this.activeBreedings.push(breeding);
+    this.save();
+
+    if (window.uiController) {
+      window.uiController.updateTopBar();
+      window.uiController.showFloatingText('💕 Breeding Initiated! (12s)', window.innerWidth / 2, window.innerHeight / 2 - 40);
+    }
+    if (window.soundEngine && window.soundEngine.playBreeding) {
+      window.soundEngine.playBreeding();
+    }
+
+    return { success: true, breeding };
+  }
+
+  speedUpBreeding(breedingId) {
+    const b = this.activeBreedings.find(x => x.id === breedingId);
+    if (!b || b.ready) return false;
+    if (this.gems < 1) {
+      if (window.uiController) {
+        window.uiController.showFloatingText('💎 Need 1 Gem to speed up!', window.innerWidth / 2, window.innerHeight / 2 - 40);
+      }
+      return false;
+    }
+
+    this.gems -= 1;
+    b.remaining = 0;
+    b.ready = true;
+    this.save();
+    if (window.uiController) {
+      window.uiController.updateTopBar();
+      window.uiController.showFloatingText('⚡ Breeding Finished!', window.innerWidth / 2, window.innerHeight / 2 - 40);
+    }
+    return true;
+  }
+
+  claimBaby(breedingId) {
+    const idx = this.activeBreedings.findIndex(b => b.id === breedingId);
+    if (idx === -1) return null;
+    const b = this.activeBreedings[idx];
+    if (!b.ready && b.remaining > 0) return null;
+
+    this.activeBreedings.splice(idx, 1);
+
+    const babyNames = {
+      cow: ['Buttercup', 'Milky Way', 'Spot', 'Clover', 'Toffee', 'Honey', 'Luna', 'Nova', 'Cocoa'],
+      chicken: ['Nugget', 'Sunny', 'Peep', 'Feather', 'Goldie', 'Chirpy', 'Pico', 'Ruby'],
+      sheep: ['Fluffy', 'Cloud', 'Marshmallow', 'Pom-Pom', 'Snowball', 'Sugar', 'Candy', 'Pixie']
+    };
+    const namePool = babyNames[b.penType] || ['Baby'];
+    const chosenName = namePool[Math.floor(Math.random() * namePool.length)];
+
+    const newAnimal = {
+      id: `${b.penType}_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      type: b.penType,
+      penType: b.penType,
+      name: chosenName,
+      breed: b.resultBreed,
+      rarity: b.resultRarity,
+      isBaby: true,
+      growth: 0.0,
+      cooldown: 0
+    };
+
+    this.animalsData.push(newAnimal);
+    this.addXP(b.resultRarity === 'legendary' ? 80 : b.resultRarity === 'rare' ? 40 : 20);
+    if (b.resultRarity === 'legendary') {
+      this.addGems(3);
+    }
+    this.save();
+
+    if (window.farmWorld && window.farmWorld.syncAnimals) {
+      window.farmWorld.syncAnimals(this.animalsData);
+    }
+
+    if (window.soundEngine && window.soundEngine.playBabyBirth) {
+      window.soundEngine.playBabyBirth();
+    }
+
+    return newAnimal;
+  }
+
+  feedBaby(animalId) {
+    const animal = this.animalsData.find(a => a.id === animalId);
+    if (!animal || !animal.isBaby) return false;
+
+    // Feed cost: 25 coins
+    if (this.coins < 25) {
+      if (window.uiController) {
+        window.uiController.showFloatingText('Need 25 🪙 for nutrient feed!', window.innerWidth / 2, window.innerHeight / 2);
+      }
+      return false;
+    }
+
+    this.coins -= 25;
+    animal.growth = Math.min(1.0, animal.growth + 0.40); // +40% growth
+    if (animal.growth >= 1.0) {
+      animal.isBaby = false;
+      animal.growth = 1.0;
+    }
+    this.save();
+
+    if (window.uiController) {
+      window.uiController.updateTopBar();
+      window.uiController.showFloatingText(animal.isBaby ? '🍼 Fed Baby! (+40% Growth)' : '🎉 Baby Matured Into Adult!', window.innerWidth / 2, window.innerHeight / 2);
+    }
+    if (window.soundEngine && window.soundEngine.playHarvest) {
+      window.soundEngine.playHarvest();
+    }
+    if (window.farmWorld && window.farmWorld.syncAnimals) {
+      window.farmWorld.syncAnimals(this.animalsData);
+    }
+    return true;
   }
 }
 

@@ -82,7 +82,6 @@ fun GameScreen(onWebViewCreated: (WebView) -> Unit = {}) {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
           )
-          setLayerType(View.LAYER_TYPE_HARDWARE, null)
           setBackgroundColor(0xFF141A16.toInt())
 
           settings.apply {
@@ -102,8 +101,17 @@ fun GameScreen(onWebViewCreated: (WebView) -> Unit = {}) {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
               return false
             }
+
+            override fun onRenderProcessGone(view: WebView?, detail: android.webkit.RenderProcessGoneDetail?): Boolean {
+              return true
+            }
           }
-          webChromeClient = WebChromeClient()
+          webChromeClient = object : WebChromeClient() {
+            override fun onConsoleMessage(consoleMessage: android.webkit.ConsoleMessage?): Boolean {
+              android.util.Log.d("FarmCraftWeb", "${consoleMessage?.message()} -- line ${consoleMessage?.lineNumber()}")
+              return true
+            }
+          }
 
           loadUrl("file:///android_asset/www/index.html")
           onWebViewCreated(this)

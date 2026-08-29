@@ -78,6 +78,16 @@ class UIController {
       });
     }
 
+    // Tutorial Helper Button
+    const btnTutorial = document.getElementById('btn-tutorial');
+    if (btnTutorial) {
+      btnTutorial.addEventListener('click', () => {
+        if (window.tutorialSystem) {
+          window.tutorialSystem.restartTutorial();
+        }
+      });
+    }
+
     // Offline Claim Button
     if (this.btnClaimOffline) {
       this.btnClaimOffline.addEventListener('click', () => {
@@ -311,8 +321,81 @@ class UIController {
     });
   }
 
-  // 2. ANIMAL RANCH SHEET
+  // 2. ANIMAL RANCH & BREEDING SANCTUARY SHEET
+  selectBreedingPen(penType) {
+    this.animalSheetTab = 'breeding';
+    this.selectedBreedingPen = penType;
+    this.parent1Id = null;
+    this.parent2Id = null;
+    if (this.currentSheet === 'animals') {
+      this.renderAnimalsSheet();
+    }
+  }
+
+  showBreedingSuccessModal(baby) {
+    const popup = document.createElement('div');
+    popup.className = 'level-up-toast';
+    popup.style.background = baby.rarity === 'legendary'
+      ? 'linear-gradient(135deg, rgba(255, 215, 0, 0.96), rgba(255, 111, 0, 0.96))'
+      : baby.rarity === 'rare'
+      ? 'linear-gradient(135deg, rgba(156, 39, 176, 0.96), rgba(233, 30, 99, 0.96))'
+      : 'linear-gradient(135deg, rgba(76, 175, 80, 0.96), rgba(0, 150, 136, 0.96))';
+    popup.innerHTML = `
+      <div class="lvl-toast-content">
+        <div class="lvl-star">${baby.rarity === 'legendary' ? '⭐' : baby.rarity === 'rare' ? '✨' : '🐣'}</div>
+        <div>
+          <h3>🎉 Baby Animal Born!</h3>
+          <p><strong>${baby.name}</strong> • ${baby.breed.toUpperCase()} (${baby.rarity.toUpperCase()})</p>
+          <p style="font-size:0.75rem; opacity:0.95;">${baby.rarity === 'legendary' ? '🌟 Legendary Mutation Discovered!' : baby.rarity === 'rare' ? '✨ Rare Breed Offspring!' : 'Healthy Baby joined the farm!'}</p>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(popup);
+    setTimeout(() => popup.remove(), 4200);
+  }
+
   renderAnimalsSheet() {
+    if (!this.animalSheetTab) this.animalSheetTab = 'livestock';
+    if (!this.selectedBreedingPen) this.selectedBreedingPen = 'cow';
+
+    // Top Tabs: Livestock Pens vs Breeding Sanctuary
+    const tabHeader = document.createElement('div');
+    tabHeader.className = 'sheet-tab-header';
+    const activeCount = this.gameState.activeBreedings.length;
+    tabHeader.innerHTML = `
+      <button class="sheet-tab-btn ${this.animalSheetTab === 'livestock' ? 'active' : ''}" id="tab-btn-livestock">
+        🐄 Livestock Pens
+      </button>
+      <button class="sheet-tab-btn ${this.animalSheetTab === 'breeding' ? 'active' : ''}" id="tab-btn-breeding">
+        💕 Breeding Sanctuary ${activeCount > 0 ? `<span class="tab-badge">${activeCount}</span>` : ''}
+      </button>
+    `;
+    this.sheetBody.appendChild(tabHeader);
+
+    tabHeader.querySelector('#tab-btn-livestock').addEventListener('click', () => {
+      this.animalSheetTab = 'livestock';
+      this.sheetBody.innerHTML = '';
+      this.renderAnimalsSheet();
+    });
+    tabHeader.querySelector('#tab-btn-breeding').addEventListener('click', () => {
+      this.animalSheetTab = 'breeding';
+      this.sheetBody.innerHTML = '';
+      this.renderAnimalsSheet();
+    });
+
+    if (this.animalSheetTab === 'livestock') {
+      this.renderLivestockTab();
+    } else {
+      this.renderBreedingTab();
+    }
+
+    // Sync 3D animals in farm world
+    if (this.farmWorld && this.farmWorld.syncAnimals) {
+      this.farmWorld.syncAnimals(this.gameState.animalsData);
+    }
+  }
+
+  renderLivestockTab() {
     const animalItems = [
       { id: 'cow', name: 'Dairy Cows Pen', icon: '🐄', cost: 250, yield: 'Fresh Milk (+60 🪙/cycle)' },
       { id: 'chicken', name: 'Cluck Chickens Pen', icon: '🐔', cost: 150, yield: 'Fresh Eggs (+35 🪙/cycle)' },
@@ -322,27 +405,82 @@ class UIController {
     animalItems.forEach(item => {
       const isUnlocked = this.gameState.unlockedAnimals.includes(item.id);
       const canBuy = this.gameState.coins >= item.cost;
+      const penAnimals = this.gameState.animalsData.filter(a => a.penType === item.id);
 
       const card = document.createElement('div');
       card.className = 'upgrade-card';
-      card.innerHTML = `
-        <div class="card-icon">${item.icon}</div>
-        <div class="card-details">
-          <div class="card-name">${item.name}</div>
-          <div class="card-desc">${item.yield}</div>
-          <div class="card-stat">${isUnlocked ? '✅ Producing Goods' : 'Available for purchase'}</div>
-        </div>
-        <div>
-          ${isUnlocked
-            ? `<button class="buy-btn" id="feed-${item.id}">Feed (+Boost 🌾)</button>`
-            : `<button class="buy-btn ${canBuy ? '' : 'disabled'}" id="buy-animal-${item.id}">
-                <span>Buy</span>
-                <span class="btn-price">${item.cost} 🪙</span>
-               </button>`
-          }
+      card.style.flexDirection = 'column';
+      card.style.alignItems = 'stretch';
+
+      let inner = `
+        <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div class="card-icon">${item.icon}</div>
+            <div class="card-details">
+              <div class="card-name">${item.name}</div>
+              <div class="card-desc">${item.yield}</div>
+              <div class="card-stat">${isUnlocked ? `✅ ${penAnimals.length} Animals Living Here` : 'Available for purchase'}</div>
+            </div>
+          </div>
+          <div>
+            ${isUnlocked
+              ? `<div style="display:flex; flex-direction:column; gap:6px;">
+                   <button class="buy-btn" id="feed-${item.id}">Feed (+Boost 🌾)</button>
+                   <button class="buy-btn" id="go-breed-${item.id}" style="background:linear-gradient(135deg, #e91e63, #c2185b);">Breed 💕</button>
+                 </div>`
+              : `<button class="buy-btn ${canBuy ? '' : 'disabled'}" id="buy-animal-${item.id}">
+                  <span>Buy</span>
+                  <span class="btn-price">${item.cost} 🪙</span>
+                 </button>`
+            }
+          </div>
         </div>
       `;
 
+      if (isUnlocked && penAnimals.length > 0) {
+        inner += `<div class="pen-animals-list">`;
+        penAnimals.forEach(anim => {
+          const chipClass = anim.rarity === 'legendary' ? 'chip-legendary' : anim.rarity === 'rare' ? 'chip-rare' : 'chip-common';
+          const rarityLabel = anim.rarity === 'legendary' ? '⭐ Legendary' : anim.rarity === 'rare' ? '✨ Rare' : '🌾 Common';
+          const animalEmoji = anim.penType === 'cow' ? (anim.isBaby ? '🐮' : '🐄') :
+                              anim.penType === 'chicken' ? (anim.isBaby ? '🐣' : '🐔') : (anim.isBaby ? '🐑' : '🧶');
+
+          inner += `
+            <div class="animal-subcard">
+              <div class="animal-subcard-info">
+                <div class="animal-subcard-title">
+                  <span>${animalEmoji}</span>
+                  <span>${anim.name}</span>
+                  <span class="rarity-chip ${chipClass}">${rarityLabel} (${anim.breed})</span>
+                </div>
+                <div class="animal-subcard-status">
+                  ${anim.isBaby
+                    ? `🍼 Baby Calf/Chick (${Math.floor(anim.growth * 100)}% Grown)
+                       <div class="mini-progress-bar">
+                         <div class="mini-progress-fill" style="width:${Math.floor(anim.growth * 100)}%"></div>
+                       </div>`
+                    : anim.cooldown > 0
+                    ? `⏳ Resting from breeding (${Math.ceil(anim.cooldown)}s)`
+                    : `💖 Adult • Ready to Breed`
+                  }
+                </div>
+              </div>
+              <div>
+                ${anim.isBaby
+                  ? `<button class="buy-btn" id="feed-baby-${anim.id}" style="padding:6px 12px; font-size:0.75rem; background:linear-gradient(135deg, #4caf50, #2e7d32);">
+                       <span>Feed 🍼</span>
+                       <span class="btn-price">25 🪙</span>
+                     </button>`
+                  : ''
+                }
+              </div>
+            </div>
+          `;
+        });
+        inner += `</div>`;
+      }
+
+      card.innerHTML = inner;
       this.sheetBody.appendChild(card);
 
       if (isUnlocked) {
@@ -351,6 +489,33 @@ class UIController {
           this.gameState.addItem(item.id === 'cow' ? 'milk' : item.id === 'chicken' ? 'eggs' : 'wool', 1);
           if (window.soundEngine) window.soundEngine.playAnimal(item.id);
           this.showFloatNum(`Fed! +Bonus Goods 📦`, window.innerWidth / 2, window.innerHeight / 2);
+        });
+
+        card.querySelector(`#go-breed-${item.id}`).addEventListener('click', () => {
+          this.selectBreedingPen(item.id);
+        });
+
+        penAnimals.forEach(anim => {
+          if (anim.isBaby) {
+            const feedBtn = card.querySelector(`#feed-baby-${anim.id}`);
+            if (feedBtn) {
+              feedBtn.addEventListener('click', () => {
+                const fed = this.gameState.feedBaby(anim.id);
+                if (fed) {
+                  this.updateTopBar();
+                  if (window.soundEngine) window.soundEngine.playHarvest();
+                  this.showFloatNum(`Fed baby! Growth accelerated! 🍼`, window.innerWidth / 2, window.innerHeight / 2);
+                  if (this.farmWorld && this.farmWorld.syncAnimals) {
+                    this.farmWorld.syncAnimals(this.gameState.animalsData);
+                  }
+                  this.sheetBody.innerHTML = '';
+                  this.renderAnimalsSheet();
+                } else {
+                  this.showFloatNum('Need 25 Coins! 🪙', window.innerWidth / 2, window.innerHeight / 2);
+                }
+              });
+            }
+          }
         });
       } else if (canBuy) {
         card.querySelector(`#buy-animal-${item.id}`).addEventListener('click', () => {
@@ -361,10 +526,296 @@ class UIController {
           const p = this.farmWorld.animals.find(a => a.type === item.id);
           if (p) p.unlocked = true;
           if (window.soundEngine) window.soundEngine.playUpgrade();
+          if (this.farmWorld && this.farmWorld.syncAnimals) {
+            this.farmWorld.syncAnimals(this.gameState.animalsData);
+          }
+          this.sheetBody.innerHTML = '';
           this.renderAnimalsSheet();
         });
       }
     });
+  }
+
+  renderBreedingTab() {
+    // 1. Species Pill Selector
+    const speciesRow = document.createElement('div');
+    speciesRow.className = 'species-pills-row';
+    const speciesOptions = [
+      { id: 'cow', name: '🐄 Cows' },
+      { id: 'chicken', name: '🐔 Chickens' },
+      { id: 'sheep', name: '🐑 Sheep' }
+    ];
+    speciesRow.innerHTML = speciesOptions.map(sp => `
+      <button class="species-pill ${this.selectedBreedingPen === sp.id ? 'active' : ''}" id="sp-btn-${sp.id}">
+        ${sp.name}
+      </button>
+    `).join('');
+    this.sheetBody.appendChild(speciesRow);
+
+    speciesOptions.forEach(sp => {
+      speciesRow.querySelector(`#sp-btn-${sp.id}`).addEventListener('click', () => {
+        this.selectedBreedingPen = sp.id;
+        this.parent1Id = null;
+        this.parent2Id = null;
+        this.sheetBody.innerHTML = '';
+        this.renderAnimalsSheet();
+      });
+    });
+
+    // 2. Active Incubation Cradle (if any)
+    const activeBreedings = this.gameState.activeBreedings.filter(b => b.penType === this.selectedBreedingPen);
+    if (activeBreedings.length > 0) {
+      activeBreedings.forEach(b => {
+        const isReady = b.ready || b.remaining <= 0;
+        const progressPct = Math.min(100, Math.floor((1 - b.remaining / b.totalDuration) * 100));
+
+        const incCard = document.createElement('div');
+        incCard.className = 'incubation-card';
+        incCard.innerHTML = `
+          <div class="incubation-header">
+            <div class="incubation-parents">
+              <span>🐣</span>
+              <span>${b.parent1Name} & ${b.parent2Name}</span>
+            </div>
+            <div class="incubation-timer">
+              ${isReady ? '🎉 READY TO HATCH!' : `⏳ ${Math.ceil(b.remaining)}s left`}
+            </div>
+          </div>
+          <div class="incubation-bar-wrap">
+            <div class="incubation-bar-fill" style="width:${progressPct}%"></div>
+          </div>
+          <div class="incubation-actions">
+            ${isReady
+              ? `<button class="claim-baby-btn" id="claim-baby-${b.id}">
+                   <span>🎉 Claim Baby Animal</span>
+                 </button>`
+              : `<button class="speed-up-btn" id="speed-up-${b.id}">
+                   <span>⚡ Speed Up (1 💎)</span>
+                 </button>`
+            }
+          </div>
+        `;
+        this.sheetBody.appendChild(incCard);
+
+        if (isReady) {
+          incCard.querySelector(`#claim-baby-${b.id}`).addEventListener('click', () => {
+            const baby = this.gameState.claimBaby(b.id);
+            if (baby) {
+              if (window.soundEngine) window.soundEngine.playBabyBirth();
+              this.showBreedingSuccessModal(baby);
+              this.updateTopBar();
+              if (this.farmWorld && this.farmWorld.syncAnimals) {
+                this.farmWorld.syncAnimals(this.gameState.animalsData);
+              }
+              this.sheetBody.innerHTML = '';
+              this.renderAnimalsSheet();
+            }
+          });
+        } else {
+          incCard.querySelector(`#speed-up-${b.id}`).addEventListener('click', () => {
+            const sped = this.gameState.speedUpBreeding(b.id);
+            if (sped) {
+              this.updateTopBar();
+              if (window.soundEngine) window.soundEngine.playUpgrade();
+              this.sheetBody.innerHTML = '';
+              this.renderAnimalsSheet();
+            } else {
+              this.showFloatNum('Need 1 Gem! 💎', window.innerWidth / 2, window.innerHeight / 2);
+            }
+          });
+        }
+      });
+    }
+
+    // 3. Breeding Pair Selection Box
+    const allPenAnimals = this.gameState.animalsData.filter(a => a.penType === this.selectedBreedingPen);
+    const adultAnimals = allPenAnimals.filter(a => !a.isBaby);
+
+    const pairBox = document.createElement('div');
+    pairBox.className = 'breeding-pair-box';
+
+    if (adultAnimals.length < 2) {
+      pairBox.innerHTML = `
+        <div class="breeding-pair-title">💕 Select Breeding Pair</div>
+        <p style="font-size:0.82rem; color:var(--text-sub); line-height:1.4;">
+          You need at least 2 adult ${this.selectedBreedingPen}s in the pen to initiate breeding.
+          Unlock the pen or wait for babies to mature!
+        </p>
+      `;
+      this.sheetBody.appendChild(pairBox);
+    } else {
+      // Default to first two if not set
+      if (!this.parent1Id || !adultAnimals.some(a => a.id === this.parent1Id)) {
+        this.parent1Id = adultAnimals[0].id;
+      }
+      if (!this.parent2Id || !adultAnimals.some(a => a.id === this.parent2Id) || this.parent2Id === this.parent1Id) {
+        this.parent2Id = adultAnimals[1] ? adultAnimals[1].id : null;
+      }
+
+      const p1 = adultAnimals.find(a => a.id === this.parent1Id);
+      const p2 = adultAnimals.find(a => a.id === this.parent2Id);
+
+      const isSameParent = this.parent1Id && this.parent2Id && this.parent1Id === this.parent2Id;
+      const p1Resting = p1 && p1.cooldown > 0;
+      const p2Resting = p2 && p2.cooldown > 0;
+      const canBreed = p1 && p2 && !isSameParent && !p1Resting && !p2Resting && this.gameState.coins >= 60;
+
+      // Estimate mutation odds based on parents
+      let mutChance = 10;
+      let rareChance = 22;
+      if ((p1 && p1.rarity === 'legendary') || (p2 && p2.rarity === 'legendary')) {
+        mutChance += 18;
+      }
+      if ((p1 && p1.rarity === 'rare') || (p2 && p2.rarity === 'rare')) {
+        rareChance += 15;
+      }
+      const commonChance = Math.max(0, 100 - mutChance - rareChance);
+
+      pairBox.innerHTML = `
+        <div class="breeding-pair-title">💕 Select Breeding Pair</div>
+        <div class="parent-select-row">
+          <div class="parent-select-card">
+            <div class="parent-select-label">Parent 1 (Adult)</div>
+            <select class="parent-dropdown" id="parent1-select">
+              ${adultAnimals.map(a => `
+                <option value="${a.id}" ${a.id === this.parent1Id ? 'selected' : ''}>
+                  ${a.name} (${a.breed} - ${a.rarity}) ${a.cooldown > 0 ? `[Resting ${Math.ceil(a.cooldown)}s]` : '✓ Ready'}
+                </option>
+              `).join('')}
+            </select>
+          </div>
+          <div class="parent-select-card">
+            <div class="parent-select-label">Parent 2 (Adult)</div>
+            <select class="parent-dropdown" id="parent2-select">
+              ${adultAnimals.map(a => `
+                <option value="${a.id}" ${a.id === this.parent2Id ? 'selected' : ''}>
+                  ${a.name} (${a.breed} - ${a.rarity}) ${a.cooldown > 0 ? `[Resting ${Math.ceil(a.cooldown)}s]` : '✓ Ready'}
+                </option>
+              `).join('')}
+            </select>
+          </div>
+        </div>
+
+        <div class="genetics-box">
+          <div style="font-size:0.78rem; font-weight:800; color:#ff80ab; margin-bottom:6px;">🧬 Genetic Odds & Potential Breeds:</div>
+          <div class="genetics-row">
+            <span>🌾 Common Breed:</span>
+            <span style="color:#cfd8dc; font-weight:800;">${commonChance}%</span>
+          </div>
+          <div class="genetics-row">
+            <span>✨ Rare Breed (e.g. Jersey/Silkie/Cotton Candy):</span>
+            <span style="color:#e1bee7; font-weight:800;">${rareChance}%</span>
+          </div>
+          <div class="genetics-row">
+            <span>⭐ Legendary Mutation (Celestial/Phoenix/Prism):</span>
+            <span style="color:#ffd54f; font-weight:800;">${mutChance}%</span>
+          </div>
+          <div class="genetics-row" style="margin-top:6px; padding-top:6px; border-top:1px dashed rgba(255,255,255,0.1);">
+            <span>Incubation Duration:</span>
+            <span style="color:#FFFFFF; font-weight:800;">12 Seconds</span>
+          </div>
+        </div>
+
+        <div style="margin-bottom:12px; font-size:0.76rem;">
+          ${isSameParent
+            ? `<span style="color:#ef5350; font-weight:800;">⚠️ Please choose two different animals.</span>`
+            : p1Resting || p2Resting
+            ? `<span style="color:#ffa726; font-weight:800;">⏳ One or both parents are resting from a previous breeding.</span>`
+            : `<span style="color:#66bb6a; font-weight:800;">✅ Compatible Adult Pair ready to mate!</span>`
+          }
+        </div>
+
+        <button class="buy-btn ${canBreed ? '' : 'disabled'}" id="start-breed-btn" style="width:100%; padding:14px; font-size:0.95rem; background:linear-gradient(135deg, #e91e63, #c2185b);">
+          <span>Start Breeding 💕</span>
+          <span class="btn-price">60 🪙</span>
+        </button>
+      `;
+
+      this.sheetBody.appendChild(pairBox);
+
+      pairBox.querySelector('#parent1-select').addEventListener('change', (e) => {
+        this.parent1Id = e.target.value;
+        this.sheetBody.innerHTML = '';
+        this.renderAnimalsSheet();
+      });
+      pairBox.querySelector('#parent2-select').addEventListener('change', (e) => {
+        this.parent2Id = e.target.value;
+        this.sheetBody.innerHTML = '';
+        this.renderAnimalsSheet();
+      });
+
+      if (canBreed) {
+        pairBox.querySelector('#start-breed-btn').addEventListener('click', () => {
+          const res = this.gameState.startBreeding(this.selectedBreedingPen, this.parent1Id, this.parent2Id);
+          if (res.success) {
+            this.updateTopBar();
+            if (window.soundEngine) window.soundEngine.playBreeding();
+            this.showFloatNum('💕 Breeding Initiated in Nursery Cradle! (12s)', window.innerWidth / 2, window.innerHeight / 2);
+            if (this.farmWorld && this.farmWorld.syncAnimals) {
+              this.farmWorld.syncAnimals(this.gameState.animalsData);
+            }
+            this.sheetBody.innerHTML = '';
+            this.renderAnimalsSheet();
+          } else {
+            this.showFloatNum(res.reason || 'Cannot breed yet', window.innerWidth / 2, window.innerHeight / 2);
+          }
+        });
+      }
+    }
+
+    // 4. Baby Nursery List
+    const babyAnimals = allPenAnimals.filter(a => a.isBaby);
+    if (babyAnimals.length > 0) {
+      const babyCard = document.createElement('div');
+      babyCard.className = 'upgrade-card';
+      babyCard.style.flexDirection = 'column';
+      babyCard.style.alignItems = 'stretch';
+      babyCard.innerHTML = `
+        <div style="font-size:0.88rem; font-weight:800; color:#4caf50; margin-bottom:8px;">🍼 Nursery Babies Growing</div>
+        <div class="pen-animals-list">
+          ${babyAnimals.map(b => `
+            <div class="animal-subcard">
+              <div class="animal-subcard-info">
+                <div class="animal-subcard-title">
+                  <span>🍼</span>
+                  <span>${b.name}</span>
+                  <span class="rarity-chip ${b.rarity === 'legendary' ? 'chip-legendary' : b.rarity === 'rare' ? 'chip-rare' : 'chip-common'}">${b.breed} (${b.rarity})</span>
+                </div>
+                <div class="animal-subcard-status">
+                  Growing into adult (${Math.floor(b.growth * 100)}%)
+                  <div class="mini-progress-bar">
+                    <div class="mini-progress-fill" style="width:${Math.floor(b.growth * 100)}%"></div>
+                  </div>
+                </div>
+              </div>
+              <button class="buy-btn" id="feed-nursery-baby-${b.id}" style="padding:6px 12px; font-size:0.75rem; background:linear-gradient(135deg, #4caf50, #2e7d32);">
+                <span>Feed 🍼</span>
+                <span class="btn-price">25 🪙</span>
+              </button>
+            </div>
+          `).join('')}
+        </div>
+      `;
+      this.sheetBody.appendChild(babyCard);
+
+      babyAnimals.forEach(b => {
+        babyCard.querySelector(`#feed-nursery-baby-${b.id}`).addEventListener('click', () => {
+          const fed = this.gameState.feedBaby(b.id);
+          if (fed) {
+            this.updateTopBar();
+            if (window.soundEngine) window.soundEngine.playHarvest();
+            this.showFloatNum('Fed baby! +40% Growth! 🍼', window.innerWidth / 2, window.innerHeight / 2);
+            if (this.farmWorld && this.farmWorld.syncAnimals) {
+              this.farmWorld.syncAnimals(this.gameState.animalsData);
+            }
+            this.sheetBody.innerHTML = '';
+            this.renderAnimalsSheet();
+          } else {
+            this.showFloatNum('Need 25 Coins! 🪙', window.innerWidth / 2, window.innerHeight / 2);
+          }
+        });
+      });
+    }
   }
 
   // 3. UPGRADES SHEET (FARMHOUSE, TRACTOR & CHARACTER)
@@ -455,6 +906,9 @@ class UIController {
             this.gameState.houseLevel += 1;
             this.farmWorld.buildFarmHouse(this.gameState.houseLevel);
             this.gameState.harvestMultiplier += 0.3;
+            if (window.tutorialSystem) {
+              window.tutorialSystem.onFarmhouseUpgraded(this.gameState.houseLevel);
+            }
           } else if (up.id === 'speed') {
             this.gameState.playerSpeed += 1.0;
             this.player.speed = this.gameState.playerSpeed;
@@ -535,6 +989,9 @@ class UIController {
           this.updateTopBar();
           if (window.soundEngine) window.soundEngine.playUpgrade();
           this.player.triggerCheer();
+          if (window.tutorialSystem) {
+            window.tutorialSystem.onWorkerHired(key);
+          }
           this.renderWorkersSheet();
         });
       }

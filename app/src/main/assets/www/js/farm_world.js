@@ -42,10 +42,18 @@ class FarmWorld {
       fence: new THREE.MeshLambertMaterial({ color: 0xa1887f }),
       cowWhite: new THREE.MeshLambertMaterial({ color: 0xffffff }),
       cowBlack: new THREE.MeshLambertMaterial({ color: 0x212121 }),
+      cowCaramel: new THREE.MeshLambertMaterial({ color: 0xa0522d }),
+      cowGold: new THREE.MeshLambertMaterial({ color: 0xffd700 }),
       chickenWhite: new THREE.MeshLambertMaterial({ color: 0xfff9c4 }),
       chickenBeak: new THREE.MeshLambertMaterial({ color: 0xff9800 }),
       chickenComb: new THREE.MeshLambertMaterial({ color: 0xd32f2f }),
+      chickenSilkie: new THREE.MeshLambertMaterial({ color: 0x9fa8da }),
+      chickenPhoenix: new THREE.MeshLambertMaterial({ color: 0xff6d00 }),
       sheepWool: new THREE.MeshLambertMaterial({ color: 0xf5f5f5 }),
+      sheepPink: new THREE.MeshLambertMaterial({ color: 0xf8bbd0 }),
+      sheepRainbow: new THREE.MeshLambertMaterial({ color: 0x4dd0e1 }),
+      strawBed: new THREE.MeshLambertMaterial({ color: 0xd7ccc8 }),
+      heartPink: new THREE.MeshBasicMaterial({ color: 0xff4081 }),
       tractorRed: new THREE.MeshLambertMaterial({ color: 0xc62828 }),
       tractorGreen: new THREE.MeshLambertMaterial({ color: 0x2e7d32 }),
       tractorMetal: new THREE.MeshLambertMaterial({ color: 0x37474f }),
@@ -508,17 +516,32 @@ class FarmWorld {
       shedRoof.rotation.z = -0.15;
       penGroup.add(shedRoof);
 
-      // Spawn Animals
+      // Nursery Nest / Cradle for active breeding & newborn babies
+      const nurseryGroup = new THREE.Group();
+      nurseryGroup.position.set(-1.3, 0.05, -1.3);
+
+      const nestBase = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.75, 0.16, 12), this.materials.strawBed);
+      nurseryGroup.add(nestBase);
+
+      const heartMesh = new THREE.Mesh(new THREE.OctahedronGeometry(0.22, 0), this.materials.heartPink);
+      heartMesh.position.set(0, 0.55, 0);
+      nurseryGroup.add(heartMesh);
+
+      nurseryGroup.visible = false;
+      penGroup.add(nurseryGroup);
+
+      // Initial animal meshes placeholder
       const animalMeshes = [];
       for (let i = 0; i < pen.count; i++) {
         let animalMesh;
         if (pen.type === 'cow') {
-          animalMesh = this.createCow();
+          animalMesh = this.createCow('holstein', false);
         } else if (pen.type === 'chicken') {
-          animalMesh = this.createChicken();
+          animalMesh = this.createChicken('leghorn', false);
         } else {
-          animalMesh = this.createSheep();
+          animalMesh = this.createSheep('merino', false);
         }
+        animalMesh.userData = { isAnimalMesh: true };
         animalMesh.position.set((i - 0.5) * 1.5, 0, (Math.random() - 0.5) * 1.5);
         penGroup.add(animalMesh);
 
@@ -535,6 +558,8 @@ class FarmWorld {
       this.animals.push({
         ...pen,
         group: penGroup,
+        nurseryGroup: nurseryGroup,
+        nurseryHeart: heartMesh,
         animals: animalMeshes,
         productTimer: 0,
         productInterval: pen.type === 'cow' ? 10 : pen.type === 'chicken' ? 6 : 14
@@ -542,41 +567,112 @@ class FarmWorld {
     });
   }
 
-  createCow() {
-    const cow = new THREE.Group();
+  syncAnimals(animalsData) {
+    if (!animalsData || !Array.isArray(animalsData)) return;
 
-    // Body (White with black patches)
-    const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.9, 1.6), this.materials.cowWhite);
+    this.animals.forEach(pen => {
+      // Remove previously spawned animal meshes
+      const toRemove = [];
+      pen.group.children.forEach(child => {
+        if (child.userData && child.userData.isAnimalMesh) {
+          toRemove.push(child);
+        }
+      });
+      toRemove.forEach(c => pen.group.remove(c));
+
+      // Filter animals data for this pen
+      const penAnimals = animalsData.filter(a => a.penType === pen.type);
+      pen.animals = [];
+
+      penAnimals.forEach((anim, idx) => {
+        let animalMesh;
+        if (pen.type === 'cow') {
+          animalMesh = this.createCow(anim.breed || 'holstein', anim.isBaby);
+        } else if (pen.type === 'chicken') {
+          animalMesh = this.createChicken(anim.breed || 'leghorn', anim.isBaby);
+        } else {
+          animalMesh = this.createSheep(anim.breed || 'merino', anim.isBaby);
+        }
+        animalMesh.userData = { isAnimalMesh: true, id: anim.id, data: anim };
+
+        // Position spread across pen ground
+        const row = Math.floor(idx / 2);
+        const col = idx % 2;
+        const posX = (col - 0.5) * 1.4 + (Math.sin(idx * 1.7) * 0.3);
+        const posZ = (row - 0.5) * 1.3 + (Math.cos(idx * 2.3) * 0.3);
+        animalMesh.position.set(posX, 0, posZ);
+        pen.group.add(animalMesh);
+
+        // Sleep bubble
+        const zBubble = this.createSleepBubble();
+        zBubble.position.set(0, anim.isBaby ? 1.0 : 1.8, 0);
+        zBubble.visible = false;
+        animalMesh.add(zBubble);
+
+        pen.animals.push({
+          data: anim,
+          mesh: animalMesh,
+          bubble: zBubble,
+          basePosY: 0,
+          basePosX: posX,
+          basePosZ: posZ
+        });
+      });
+    });
+  }
+
+  createCow(breed = 'holstein', isBaby = false) {
+    const cow = new THREE.Group();
+    if (isBaby) {
+      cow.scale.set(0.5, 0.5, 0.5);
+    }
+
+    const isJersey = breed === 'jersey';
+    const isCelestial = breed === 'celestial';
+
+    const bodyMat = isCelestial ? this.materials.cowGold : isJersey ? this.materials.cowCaramel : this.materials.cowWhite;
+    const patchMat = isCelestial ? this.materials.coinGold : isJersey ? this.materials.woodDark : this.materials.cowBlack;
+    const snoutMat = isCelestial ? this.materials.lampGlow : isJersey ? this.materials.cowBlack : this.materials.woodLight;
+
+    // Body
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.9, 1.6), bodyMat);
     body.position.y = 0.85;
     body.castShadow = true;
     cow.add(body);
 
-    // Black Patch on flank
-    const patch = new THREE.Mesh(new THREE.BoxGeometry(1.22, 0.5, 0.7), this.materials.cowBlack);
+    // Patch on flank
+    const patch = new THREE.Mesh(new THREE.BoxGeometry(1.22, 0.5, 0.7), patchMat);
     patch.position.set(0, 0.9, 0.2);
     cow.add(patch);
 
     // Head
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.7), this.materials.cowWhite);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.7), bodyMat);
     head.position.set(0, 1.2, 0.95);
     cow.add(head);
 
     // Snout / Nose
-    const snout = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.3, 0.3), this.materials.woodLight);
+    const snout = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.3, 0.3), snoutMat);
     snout.position.set(0, 1.05, 1.35);
     cow.add(snout);
 
     // Horns
     [-0.25, 0.25].forEach(hx => {
-      const horn = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.25, 6), this.materials.woodDark);
+      const horn = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.25, 6), isCelestial ? this.materials.coinGold : this.materials.woodDark);
       horn.position.set(hx, 1.55, 0.85);
       horn.rotation.z = hx > 0 ? -0.4 : 0.4;
       cow.add(horn);
     });
 
+    // If Celestial Legendary Mutation, add crown star
+    if (isCelestial) {
+      const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.2, 0), this.materials.lampGlow);
+      star.position.set(0, 1.85, 0.95);
+      cow.add(star);
+    }
+
     // 4 Legs
     [[-0.4, -0.5], [0.4, -0.5], [-0.4, 0.5], [0.4, 0.5]].forEach(pos => {
-      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.6, 8), this.materials.cowWhite);
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.6, 8), bodyMat);
       leg.position.set(pos[0], 0.3, pos[1]);
       leg.castShadow = true;
       cow.add(leg);
@@ -585,30 +681,45 @@ class FarmWorld {
     return cow;
   }
 
-  createChicken() {
+  createChicken(breed = 'leghorn', isBaby = false) {
     const chicken = new THREE.Group();
-    chicken.scale.set(0.65, 0.65, 0.65);
+    const scale = isBaby ? 0.38 : 0.65;
+    chicken.scale.set(scale, scale, scale);
+
+    const isSilkie = breed === 'silkie';
+    const isPhoenix = breed === 'phoenix';
+
+    const bodyMat = isPhoenix ? this.materials.chickenPhoenix : isSilkie ? this.materials.chickenSilkie : this.materials.chickenWhite;
+    const combMat = isPhoenix ? this.materials.coinGold : isSilkie ? this.materials.glassGlow : this.materials.chickenComb;
 
     // Body
-    const body = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 8), this.materials.chickenWhite);
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 8), bodyMat);
     body.position.y = 0.5;
     body.castShadow = true;
     chicken.add(body);
 
-    // Head & Red Comb
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 8), this.materials.chickenWhite);
+    // Head & Comb
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 8), bodyMat);
     head.position.set(0, 0.85, 0.25);
     chicken.add(head);
 
-    const comb = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.18, 0.22), this.materials.chickenComb);
+    const comb = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.18, 0.22), combMat);
     comb.position.set(0, 1.05, 0.25);
     chicken.add(comb);
 
-    // Orange Beak
+    // Beak
     const beak = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.2, 6), this.materials.chickenBeak);
     beak.rotation.x = Math.PI / 2;
     beak.position.set(0, 0.85, 0.45);
     chicken.add(beak);
+
+    // Tail Feathers for Phoenix
+    if (isPhoenix) {
+      const tail = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.4, 4), this.materials.coinGold);
+      tail.position.set(0, 0.7, -0.4);
+      tail.rotation.x = -Math.PI / 3;
+      chicken.add(tail);
+    }
 
     // Legs
     [-0.15, 0.15].forEach(lx => {
@@ -620,24 +731,43 @@ class FarmWorld {
     return chicken;
   }
 
-  createSheep() {
+  createSheep(breed = 'merino', isBaby = false) {
     const sheep = new THREE.Group();
+    if (isBaby) {
+      sheep.scale.set(0.46, 0.46, 0.46);
+    }
+
+    const isPink = breed === 'cotton_candy';
+    const isRainbow = breed === 'prism';
+
+    const woolMat = isRainbow ? this.materials.sheepRainbow : isPink ? this.materials.sheepPink : this.materials.sheepWool;
+    const faceMat = isRainbow ? this.materials.lampGlow : isPink ? this.materials.woodLight : this.materials.cowBlack;
 
     // Fluffy Wool Body
-    const body = new THREE.Mesh(new THREE.SphereGeometry(0.7, 10, 8), this.materials.sheepWool);
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.7, 10, 8), woolMat);
     body.position.y = 0.75;
     body.scale.set(1.0, 0.9, 1.3);
     body.castShadow = true;
     sheep.add(body);
 
-    // Head (Black face)
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), this.materials.cowBlack);
+    // Head
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), faceMat);
     head.position.set(0, 0.95, 0.85);
     sheep.add(head);
 
+    // Horns for Rainbow Prism
+    if (isRainbow) {
+      [-0.2, 0.2].forEach(hx => {
+        const horn = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.25, 4), this.materials.coinGold);
+        horn.position.set(hx, 1.25, 0.75);
+        horn.rotation.z = hx > 0 ? -0.5 : 0.5;
+        sheep.add(horn);
+      });
+    }
+
     // 4 Legs
     [[-0.35, -0.4], [0.35, -0.4], [-0.35, 0.4], [0.35, 0.4]].forEach(pos => {
-      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.5, 6), this.materials.cowBlack);
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.5, 6), faceMat);
       leg.position.set(pos[0], 0.25, pos[1]);
       sheep.add(leg);
     });
@@ -1082,11 +1212,25 @@ class FarmWorld {
       item.light.intensity += (targetInt - item.light.intensity) * delta * 3.0;
     });
 
-    // 3. Animal Behaviors (Grazing vs Sleeping)
+    // 3. Animal Behaviors (Grazing vs Sleeping & Baby Hops) & Breeding Nursery
     this.animals.forEach(pen => {
+      // Nursery breeding visualization
+      const isBreeding = gameState && gameState.activeBreedings && gameState.activeBreedings.some(b => b.penType === pen.type);
+      if (pen.nurseryGroup) {
+        pen.nurseryGroup.visible = !!isBreeding;
+        if (isBreeding && pen.nurseryHeart) {
+          const ht = Date.now() * 0.004;
+          pen.nurseryHeart.rotation.y += delta * 2.5;
+          pen.nurseryHeart.position.y = 0.55 + Math.sin(ht) * 0.12;
+          const hScale = 1.0 + Math.sin(ht * 2) * 0.15;
+          pen.nurseryHeart.scale.set(hScale, hScale, hScale);
+        }
+      }
+
       if (pen.unlocked) {
         pen.animals.forEach((item, idx) => {
           const t = Date.now() * 0.002 + idx * 2.0;
+          const isBaby = item.data && item.data.isBaby;
 
           if (isNight) {
             // Animals lie down on the grass and sleep
@@ -1094,13 +1238,18 @@ class FarmWorld {
             item.mesh.rotation.z = Math.sin(t * 0.3) * 0.05 + 0.1;
             item.mesh.rotation.x = 0.1;
             item.bubble.visible = true;
-            item.bubble.position.y = 1.6 + Math.sin(t * 1.5) * 0.15;
+            item.bubble.position.y = (isBaby ? 1.0 : 1.6) + Math.sin(t * 1.5) * 0.12;
           } else {
             // Wake up, stand, and graze
-            item.mesh.position.y = Math.min(0, item.mesh.position.y + delta * 0.5);
+            let targetY = 0;
+            if (isBaby) {
+              // Cute energetic baby hopping
+              targetY = Math.abs(Math.sin(t * 3.5)) * 0.16;
+            }
+            item.mesh.position.y = targetY;
             item.mesh.rotation.z = 0;
             item.mesh.rotation.x = 0;
-            item.mesh.rotation.y = Math.sin(t * 0.5) * 0.3;
+            item.mesh.rotation.y = Math.sin(t * 0.7) * 0.35;
             item.bubble.visible = false;
           }
         });

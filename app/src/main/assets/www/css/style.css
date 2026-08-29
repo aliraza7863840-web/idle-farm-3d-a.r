@@ -285,6 +285,25 @@ html, body {
   text-transform: uppercase;
   letter-spacing: 0.2px;
   margin-top: 2px;
+  transition: color 0.2s ease;
+}
+
+.tactile-btn.active {
+  background: linear-gradient(180deg, #FFFFFF 0%, #ECFDF5 100%);
+  border: 2px solid #10B981;
+  border-bottom: 4px solid #059669;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.4), 0 8px 18px rgba(0, 0, 0, 0.25);
+  transform: translateY(-2px);
+}
+
+.tactile-btn.active label {
+  color: #047857;
+  font-weight: 900;
+}
+
+.tactile-btn.active .side-btn-icon {
+  transform: scale(1.14);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .market-side-btn {
@@ -954,3 +973,569 @@ html, body {
   font-weight: 800;
   opacity: 0.95;
 }
+
+/* ============================================================
+   ANIMAL BREEDING & LIVESTOCK SANCTUARY STYLES
+   ============================================================ */
+.sheet-tab-header {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 6px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sheet-tab-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-sub);
+  font-size: 0.85rem;
+  font-weight: 800;
+  padding: 10px 12px;
+  border-radius: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.sheet-tab-btn.active {
+  background: linear-gradient(135deg, #e91e63, #ad1457);
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(233, 30, 99, 0.4);
+}
+
+.tab-badge {
+  background: #ffeb3b;
+  color: #212121;
+  font-size: 0.72rem;
+  font-weight: 900;
+  border-radius: 10px;
+  padding: 1px 7px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Species Pills */
+.species-pills-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.species-pill {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  padding: 9px 8px;
+  color: var(--text-sub);
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.species-pill.active {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: #ff80ab;
+  color: #FFFFFF;
+  box-shadow: 0 4px 12px rgba(255, 128, 171, 0.3);
+}
+
+/* Rarity Badges */
+.rarity-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 900;
+  padding: 3px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.chip-common {
+  background: rgba(144, 164, 174, 0.25);
+  color: #cfd8dc;
+  border: 1px solid rgba(207, 216, 220, 0.3);
+}
+
+.chip-rare {
+  background: rgba(156, 39, 176, 0.3);
+  color: #e1bee7;
+  border: 1px solid rgba(186, 104, 200, 0.5);
+  box-shadow: 0 0 10px rgba(186, 104, 200, 0.3);
+}
+
+.chip-legendary {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.35), rgba(255, 152, 0, 0.35));
+  color: #fff9c4;
+  border: 1px solid #ffd54f;
+  box-shadow: 0 0 14px rgba(255, 215, 0, 0.5);
+  animation: pulseGlow 1.8s infinite alternate;
+}
+
+@keyframes pulseGlow {
+  0% { box-shadow: 0 0 8px rgba(255, 215, 0, 0.4); }
+  100% { box-shadow: 0 0 18px rgba(255, 215, 0, 0.8); }
+}
+
+/* Animal Subcard List */
+.pen-animals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.15);
+}
+
+.animal-subcard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 8px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.animal-subcard-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.animal-subcard-title {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.animal-subcard-status {
+  font-size: 0.74rem;
+  color: var(--text-sub);
+}
+
+/* Mini Progress Bar */
+.mini-progress-bar {
+  width: 90px;
+  height: 7px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: 3px;
+}
+
+.mini-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4caf50, #8bc34a);
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+
+/* Breeding Pair Selector Box */
+.breeding-pair-box {
+  background: rgba(233, 30, 99, 0.1);
+  border: 1px solid rgba(233, 30, 99, 0.3);
+  border-radius: 20px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.breeding-pair-title {
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: #ff80ab;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.parent-select-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.parent-select-card {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.parent-select-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #ff80ab;
+  text-transform: uppercase;
+}
+
+.parent-dropdown {
+  width: 100%;
+  background: #263238;
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  outline: none;
+}
+
+/* Genetic Preview Box */
+.genetics-box {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.genetics-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.76rem;
+  color: var(--text-sub);
+  margin-bottom: 4px;
+}
+
+.genetics-row:last-child {
+  margin-bottom: 0;
+}
+
+/* Active Incubation Card */
+.incubation-card {
+  background: linear-gradient(135deg, rgba(233, 30, 99, 0.2), rgba(156, 39, 176, 0.2));
+  border: 1px solid rgba(255, 128, 171, 0.5);
+  border-radius: 20px;
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 6px 20px rgba(233, 30, 99, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.incubation-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.incubation-parents {
+  font-size: 0.92rem;
+  font-weight: 900;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.incubation-timer {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #ff80ab;
+}
+
+.incubation-bar-wrap {
+  width: 100%;
+  height: 10px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.incubation-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff4081, #ff80ab);
+  border-radius: 10px;
+  transition: width 0.4s ease;
+}
+
+.incubation-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.speed-up-btn {
+  background: linear-gradient(180deg, #00e5ff, #00b0ff);
+  border: none;
+  border-radius: 14px;
+  padding: 8px 14px;
+  color: #002b49;
+  font-size: 0.82rem;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 229, 255, 0.4);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.claim-baby-btn {
+  background: linear-gradient(180deg, #76ff03, #64dd17);
+  border: none;
+  border-radius: 14px;
+  padding: 10px 18px;
+  color: #1b5e20;
+  font-size: 0.92rem;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(118, 255, 3, 0.5);
+  animation: pulseGlow 1.2s infinite alternate;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ============================================================
+   STEP-BY-STEP TUTORIAL SYSTEM STYLES
+   ============================================================ */
+.tutorial-card {
+  position: absolute;
+  top: calc(var(--safe-top) + 68px);
+  left: 14px;
+  right: 14px;
+  max-width: 480px;
+  margin: 0 auto;
+  background: linear-gradient(135deg, rgba(20, 29, 38, 0.92), rgba(10, 16, 23, 0.95));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1.5px solid rgba(255, 235, 59, 0.6);
+  border-radius: 22px;
+  padding: 14px 16px;
+  z-index: 55;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 235, 59, 0.25);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: auto;
+}
+
+.tutorial-card.step-enter {
+  animation: slideDownTutorial 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes slideDownTutorial {
+  0% { transform: translateY(-30px) scale(0.92); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.tutorial-card.pulse-celebrate {
+  animation: celebrateFlash 0.6s ease-out;
+}
+
+@keyframes celebrateFlash {
+  0% { transform: scale(1); border-color: #ffd54f; }
+  50% { transform: scale(1.04); border-color: #76ff03; box-shadow: 0 0 30px rgba(118, 255, 3, 0.8); }
+  100% { transform: scale(1); border-color: rgba(255, 235, 59, 0.6); }
+}
+
+.tutorial-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.tutorial-step-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tutorial-badge {
+  background: linear-gradient(135deg, #ffd600, #ffab00);
+  color: #1a237e;
+  font-size: 0.72rem;
+  font-weight: 900;
+  padding: 2px 8px;
+  border-radius: 8px;
+  letter-spacing: 0.5px;
+}
+
+.tutorial-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.tutorial-dots .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  transition: all 0.25s ease;
+}
+
+.tutorial-dots .dot.active {
+  background: #ffd600;
+  width: 14px;
+  border-radius: 6px;
+  box-shadow: 0 0 8px #ffd600;
+}
+
+.tutorial-dots .dot.done {
+  background: #76ff03;
+}
+
+.tutorial-skip-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-sub);
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.tutorial-skip-btn:active {
+  color: #FFFFFF;
+}
+
+.tutorial-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.tutorial-icon-box {
+  width: 44px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.tutorial-text-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.tutorial-title {
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: #FFFFFF;
+  letter-spacing: -0.2px;
+  margin-bottom: 3px;
+}
+
+.tutorial-desc {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-sub);
+  line-height: 1.35;
+}
+
+.tutorial-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tutorial-progress-bar {
+  width: 100%;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.tutorial-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ffd600, #76ff03);
+  border-radius: 4px;
+  transition: width 0.35s ease;
+}
+
+.tutorial-hint {
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: #ffeb3b;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Pulsing highlight for interactive tutorial targets (buttons, plots) */
+.tutorial-pulse-target {
+  animation: tutorialTargetPulse 1.2s infinite alternate !important;
+  box-shadow: 0 0 0 3px #ffd600, 0 0 20px rgba(255, 214, 0, 0.8) !important;
+  border-color: #ffd600 !important;
+  position: relative;
+  z-index: 50 !important;
+}
+
+@keyframes tutorialTargetPulse {
+  0% {
+    box-shadow: 0 0 0 2px #ffd600, 0 0 10px rgba(255, 214, 0, 0.4);
+    transform: scale(1);
+  }
+  100% {
+    box-shadow: 0 0 0 5px #76ff03, 0 0 25px rgba(118, 255, 3, 0.9);
+    transform: scale(1.06);
+  }
+}
+
+/* Tutorial Completion Modal */
+.tutorial-complete-modal {
+  z-index: 80;
+}
+
+.tutorial-complete-card {
+  max-width: 380px;
+  border: 2px solid #ffd600;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 0 30px rgba(255, 214, 0, 0.4);
+}
+
+.tutorial-reward-summary {
+  display: flex;
+  justify-content: space-around;
+  gap: 8px;
+  margin: 16px 0 20px 0;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 12px 8px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tut-reward-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.tut-reward-icon {
+  font-size: 1.5rem;
+}
+
+.tut-reward-num {
+  font-size: 0.8rem;
+  font-weight: 900;
+  color: #FFFFFF;
+}
+
+
