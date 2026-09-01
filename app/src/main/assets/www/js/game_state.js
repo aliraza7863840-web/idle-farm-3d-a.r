@@ -18,17 +18,57 @@ class GameState {
     this.farmingPower = 1; // Multiplier on crop & product yield
     this.carryCapacity = 20;
 
-    // Tractor Auto-Farming
+    // Tractor Auto-Farming & Player Driveable Vehicles
     this.tractorUnlocked = false;
     this.tractorLevel = 1;
     this.tractorSpeed = 1.0;
 
+    // Free Starter Tools & Gear
+    this.tools = {
+      hoe: { id: 'hoe', name: 'Starter Steel Hoe', owned: true, level: 1 },
+      waterCan: { id: 'waterCan', name: 'Brass Watering Can', owned: true, level: 1 },
+      sickle: { id: 'sickle', name: 'Harvest Sickle', owned: true, level: 1 },
+      fishingRod: { id: 'fishingRod', name: 'Bamboo Fishing Rod', owned: true, level: 1 },
+      starterPackClaimed: true
+    };
+
+    // Free Starter Seed Pouches
+    this.seeds = {
+      wheat: 25,
+      corn: 15,
+      carrot: 12,
+      strawberry: 8,
+      pumpkin: 5
+    };
+
+    // Player Driveable Vehicles (Bike is 100% Free Starter Vehicle!)
+    this.vehicles = {
+      bike: { id: 'bike', name: 'City Cruiser Bike', icon: '🚲', unlocked: true, speed: 12.0, turnSpeed: 4.5, desc: 'Nimble & fast bicycle for exploring forests and hills.' },
+      buggy: { id: 'buggy', name: 'Dune Sand Buggy', icon: '🏎️', unlocked: false, cost: 800, speed: 19.5, turnSpeed: 4.8, desc: 'Ultra-fast off-road buggy with roll cage and turbo acceleration!' },
+      tractor: { id: 'tractor', name: 'Field Master Tractor', icon: '🚜', unlocked: false, cost: 500, speed: 7.5, turnSpeed: 2.8, desc: 'Heavy diesel tractor. Automatically tills and harvests crop fields while driving!' },
+      pickup: { id: 'pickup', name: 'Farm Pickup Truck', icon: '🛻', unlocked: false, cost: 1200, speed: 15.5, turnSpeed: 3.5, desc: 'High-speed 4x4 truck with large cargo bed and headlights.' },
+      sedan: { id: 'sedan', name: 'Country Town Sedan', icon: '🚗', unlocked: false, cost: 950, speed: 16.0, turnSpeed: 3.8, desc: 'Smooth highway cruising sedan with comfy cabin.' },
+      quad: { id: 'quad', name: 'All-Terrain Quad ATV', icon: '🏍️', unlocked: false, cost: 650, speed: 14.0, turnSpeed: 4.2, desc: 'Rugged 4-wheel ATV perfect for climbing mountain trails.' },
+      cart: { id: 'cart', name: 'Pony Cargo Cart', icon: '🐎', unlocked: false, cost: 350, speed: 9.0, turnSpeed: 3.2, desc: 'Charming wooden wagon pulled along country trails.' }
+    };
+    this.currentVehicle = null; // null or 'bike' | 'buggy' | 'tractor' | 'pickup' | 'sedan' | 'quad' | 'cart'
+
+    // Fishing System & Freshwater Catch Records
+    this.fishInventory = {
+      bass: 0,
+      trout: 0,
+      catfish: 0,
+      salmon: 0,
+      golden_koi: 0
+    };
+    this.totalFishCaught = 0;
+
     // Inventory of Raw Farm Goods
     this.inventory = {
-      wheat: 0,
-      corn: 0,
-      carrot: 0,
-      strawberry: 0,
+      wheat: 10,
+      corn: 5,
+      carrot: 5,
+      strawberry: 2,
       pumpkin: 0,
       milk: 0,
       buffalo_butter: 0,
@@ -123,6 +163,11 @@ class GameState {
       tutorialCompleted: this.tutorialCompleted,
       animalsData: this.animalsData,
       activeBreedings: this.activeBreedings,
+      tools: this.tools,
+      seeds: this.seeds,
+      vehicles: this.vehicles,
+      fishInventory: this.fishInventory,
+      totalFishCaught: this.totalFishCaught,
       lastSaveTime: Date.now()
     };
     try {
@@ -152,6 +197,11 @@ class GameState {
         if (d.tractorUnlocked !== undefined) this.tractorUnlocked = d.tractorUnlocked;
         if (d.tractorLevel !== undefined) this.tractorLevel = d.tractorLevel;
         if (d.inventory) this.inventory = { ...this.inventory, ...d.inventory };
+        if (d.tools) this.tools = { ...this.tools, ...d.tools };
+        if (d.seeds) this.seeds = { ...this.seeds, ...d.seeds };
+        if (d.vehicles) this.vehicles = { ...this.vehicles, ...d.vehicles };
+        if (d.fishInventory) this.fishInventory = { ...this.fishInventory, ...d.fishInventory };
+        if (d.totalFishCaught !== undefined) this.totalFishCaught = d.totalFishCaught;
         if (d.workers) this.workers = { ...this.workers, ...d.workers };
         if (d.unlockedPlots) this.unlockedPlots = d.unlockedPlots;
         if (d.unlockedAnimals) {
@@ -750,6 +800,71 @@ class GameState {
       window.farmWorld.syncAnimals(this.animalsData);
     }
     return true;
+  }
+
+  // Driveable Vehicles Controller
+  mountVehicle(vehicleId) {
+    if (!this.vehicles[vehicleId] || !this.vehicles[vehicleId].unlocked) return false;
+    this.currentVehicle = vehicleId;
+    if (window.soundEngine) {
+      if (vehicleId === 'bike') window.soundEngine.playBikeBell();
+      else window.soundEngine.playHorn();
+    }
+    if (window.uiController) {
+      window.uiController.updateVehicleHUD();
+      window.uiController.showFloatingText(`Mounted ${this.vehicles[vehicleId].name}! ${this.vehicles[vehicleId].icon}`);
+    }
+    return true;
+  }
+
+  dismountVehicle() {
+    if (!this.currentVehicle) return;
+    const v = this.vehicles[this.currentVehicle];
+    this.currentVehicle = null;
+    if (window.uiController) {
+      window.uiController.updateVehicleHUD();
+      window.uiController.showFloatingText(`Dismounted ${v ? v.name : 'Vehicle'}`);
+    }
+  }
+
+  unlockVehicle(vehicleId) {
+    const v = this.vehicles[vehicleId];
+    if (!v || v.unlocked) return false;
+    if (this.coins < v.cost) {
+      if (window.uiController) window.uiController.showFloatingText(`Need ${v.cost} 🪙 to unlock ${v.name}`);
+      return false;
+    }
+    this.coins -= v.cost;
+    v.unlocked = true;
+    this.addXP(50);
+    this.save();
+    if (window.soundEngine && window.soundEngine.playLevelUp) {
+      window.soundEngine.playLevelUp();
+    }
+    if (window.uiController) {
+      window.uiController.updateTopBar();
+      window.uiController.showFloatingText(`🎉 Unlocked ${v.name}! ${v.icon}`);
+    }
+    return true;
+  }
+
+  // Fishing System
+  recordFishCatch(fishType) {
+    const rewards = {
+      bass: { name: 'Freshwater Bass', coins: 35, xp: 15, icon: '🐟' },
+      trout: { name: 'Rainbow Trout', coins: 65, xp: 25, icon: '🐠' },
+      catfish: { name: 'River Catfish', coins: 110, xp: 40, icon: '🐡' },
+      salmon: { name: 'King Salmon', coins: 180, xp: 60, icon: '🦈' },
+      golden_koi: { name: 'Golden Koi', coins: 450, xp: 120, icon: '✨🐟' }
+    };
+    const info = rewards[fishType] || rewards.bass;
+    this.fishInventory[fishType] = (this.fishInventory[fishType] || 0) + 1;
+    this.totalFishCaught++;
+    this.addCoins(info.coins);
+    this.addXP(info.xp);
+    if (fishType === 'golden_koi') this.addGems(1);
+    this.save();
+    return info;
   }
 }
 

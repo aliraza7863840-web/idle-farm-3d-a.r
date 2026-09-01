@@ -84,7 +84,34 @@ class FarmWorld {
       workerHat: new THREE.MeshLambertMaterial({ color: 0xffe082 }),
       workerDenim: new THREE.MeshLambertMaterial({ color: 0x1976d2 }),
       workerShirt: new THREE.MeshLambertMaterial({ color: 0xef5350 }),
-      skinTone: new THREE.MeshLambertMaterial({ color: 0xb88265 })
+      skinTone: new THREE.MeshLambertMaterial({ color: 0xb88265 }),
+      pineGreen: new THREE.MeshLambertMaterial({ color: 0x1b5e20 }),
+      mountainGrey: new THREE.MeshLambertMaterial({ color: 0x546e7a }),
+      mountainSnow: new THREE.MeshLambertMaterial({ color: 0xf5f5f5 }),
+      mountainRock: new THREE.MeshLambertMaterial({ color: 0x37474f }),
+      crystalOre: new THREE.MeshBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.85 }),
+      goldOre: new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.9 }),
+      campfireWood: new THREE.MeshLambertMaterial({ color: 0x3e2723 }),
+      campfireGlow: new THREE.MeshBasicMaterial({ color: 0xff3d00 }),
+      bridgeWood: new THREE.MeshLambertMaterial({ color: 0x6d4c41 }),
+      waterSparkle: new THREE.MeshLambertMaterial({ color: 0x4fc3f7, transparent: true, opacity: 0.85 }),
+      waterDeep: new THREE.MeshLambertMaterial({ color: 0x0288d1, transparent: true, opacity: 0.9 }),
+      lilyPad: new THREE.MeshLambertMaterial({ color: 0x33691e }),
+      sproutGreen: new THREE.MeshLambertMaterial({ color: 0x8bc34a }),
+      bikeRed: new THREE.MeshLambertMaterial({ color: 0xe53935 }),
+      pickupBlue: new THREE.MeshLambertMaterial({ color: 0x1e88e5 }),
+      buggyOrange: new THREE.MeshLambertMaterial({ color: 0xff6f00 }),
+      sedanTeal: new THREE.MeshLambertMaterial({ color: 0x00838f }),
+      quadGreen: new THREE.MeshLambertMaterial({ color: 0x33691e }),
+      asphalt: new THREE.MeshLambertMaterial({ color: 0x2e353b }),
+      roadLine: new THREE.MeshBasicMaterial({ color: 0xffeb3b }),
+      crosswalk: new THREE.MeshBasicMaterial({ color: 0xffffff }),
+      tentCloth: new THREE.MeshLambertMaterial({ color: 0xd84315 }),
+      brickWall: new THREE.MeshLambertMaterial({ color: 0xb71c1c }),
+      roofBlue: new THREE.MeshLambertMaterial({ color: 0x1565c0 }),
+      roofRed: new THREE.MeshLambertMaterial({ color: 0xc62828 }),
+      gasYellow: new THREE.MeshLambertMaterial({ color: 0xfbc02d }),
+      glassMat: new THREE.MeshLambertMaterial({ color: 0xb3e5fc, transparent: true, opacity: 0.65 })
     };
 
     this.houseGroup = new THREE.Group();
@@ -102,10 +129,21 @@ class FarmWorld {
     this.lightsGroup = new THREE.Group();
     this.scene.add(this.lightsGroup);
 
+    this.waterZones = [];
+    this.fishingSpots = [];
+    this.worldVehicles = [];
+    this.furnitureSpots = [];
+
     this.buildBaseTerrain();
+    this.buildNorthTownVillage();
+    this.buildForestArea();
+    this.buildMountainRange();
+    this.buildRiverAndLakes();
+    this.buildWorldVehicles();
     this.buildFarmHouse(1);
     this.buildCropPlots();
     this.buildAnimalPens();
+    this.buildCropFences();
     this.buildWindmill();
     this.buildWaterWell();
     this.buildMarketShop();
@@ -117,41 +155,74 @@ class FarmWorld {
   }
 
   buildBaseTerrain() {
-    // 1. Full Infinite Green Grass Ground Plane to prevent any void/blue gaps
-    const groundGeo = new THREE.PlaneGeometry(120, 120);
+    // 1. Massive 600x600 Expansive Green Open World Canvas
+    const groundGeo = new THREE.PlaneGeometry(600, 600, 30, 30);
     const groundMesh = new THREE.Mesh(groundGeo, this.materials.grass);
     groundMesh.rotation.x = -Math.PI / 2;
     groundMesh.position.y = -0.02;
     groundMesh.receiveShadow = true;
     this.scene.add(groundMesh);
 
-    // 2. Large Stylized Farm Island with chamfered rim
-    const islandGeo = new THREE.CylinderGeometry(32, 34, 2.8, 36);
+    // 2. Central Farm Island Plateau
+    const islandGeo = new THREE.CylinderGeometry(38, 42, 2.8, 36);
     const islandMesh = new THREE.Mesh(islandGeo, this.materials.grass);
     islandMesh.position.y = -1.4;
     islandMesh.receiveShadow = true;
     this.scene.add(islandMesh);
 
-    // 3. River / Pond on the left
-    const pondGeo = new THREE.CylinderGeometry(4.8, 4.8, 0.4, 22);
-    const pondMesh = new THREE.Mesh(pondGeo, this.materials.water);
-    pondMesh.position.set(-14, 0.05, 12);
-    this.scene.add(pondMesh);
+    // 3. Paved Main Highway Road Network (GTA-Style Multi-lane Roads)
+    const roadGroup = new THREE.Group();
 
-    // Pond Wooden Pier / Dock
-    const dockGeo = new THREE.BoxGeometry(2.4, 0.15, 3.5);
-    const dockMesh = new THREE.Mesh(dockGeo, this.materials.woodPlank);
-    dockMesh.position.set(-12, 0.1, 10.5);
-    dockMesh.rotation.y = 0.5;
-    this.scene.add(dockMesh);
+    // North-South Main Highway (Farm to North Town: X: 4, Z: -150 to +250)
+    const nsHighway = new THREE.Mesh(new THREE.BoxGeometry(9.0, 0.05, 400), this.materials.asphalt);
+    nsHighway.position.set(4, 0.02, 50);
+    nsHighway.receiveShadow = true;
+    roadGroup.add(nsHighway);
 
-    // Cobblestone Pathways connecting farmhouse, fields, and animal pens
+    // North-South Yellow Center Dashed Lines
+    for (let lz = -140; lz <= 240; lz += 8) {
+      const line = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.06, 4.0), this.materials.roadLine);
+      line.position.set(4, 0.04, lz);
+      roadGroup.add(line);
+    }
+
+    // East-West Town Boulevard (Crosses North Town: Z: 85, X: -180 to +180)
+    const ewTownRoad = new THREE.Mesh(new THREE.BoxGeometry(360, 0.05, 8.5), this.materials.asphalt);
+    ewTownRoad.position.set(0, 0.02, 85);
+    ewTownRoad.receiveShadow = true;
+    roadGroup.add(ewTownRoad);
+
+    // East-West Yellow Center Dashed Lines
+    for (let lx = -170; lx <= 170; lx += 8) {
+      const line = new THREE.Mesh(new THREE.BoxGeometry(4.0, 0.06, 0.3), this.materials.roadLine);
+      line.position.set(lx, 0.04, 85);
+      roadGroup.add(line);
+    }
+
+    // Highway Intersection Crosswalks
+    [-4, 4].forEach(offset => {
+      for (let s = -3.5; s <= 3.5; s += 1.0) {
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 2.5), this.materials.crosswalk);
+        stripe.position.set(4 + s, 0.04, 85 + offset * 1.5);
+        roadGroup.add(stripe);
+      }
+    });
+
+    this.scene.add(roadGroup);
+
+    // 4. Cobblestone & Dirt Pathways Connecting Zones
     const paths = [
-      { x: 0, z: 0, w: 2.6, h: 26, rot: 0 }, // North-South main avenue
-      { x: 2, z: 1, w: 26, h: 2.6, rot: 0 }, // East-West crossroad
-      { x: -5, z: -3, w: 2.0, h: 8, rot: 0.4 },
-      { x: 8, z: 8, w: 1.8, h: 9, rot: -0.2 },
-      { x: 6, z: 12, w: 2.4, h: 6, rot: 0 } // Path leading to Roadside Market
+      { x: 0, z: 0, w: 2.8, h: 32, rot: 0 }, // North-South farm lane
+      { x: 2, z: 1, w: 32, h: 2.8, rot: 0 }, // East-West crossroad
+      { x: -5, z: -3, w: 2.2, h: 10, rot: 0.4 },
+      { x: 8, z: 8, w: 2.0, h: 12, rot: -0.2 },
+      { x: 6, z: 14, w: 2.6, h: 10, rot: 0 }, // Path leading to Roadside Market
+      { x: -18, z: -15, w: 2.4, h: 42, rot: 0.5 }, // Trail leading toward North-West Pine Forest
+      { x: 25, z: -5, w: 2.4, h: 38, rot: -0.4 }, // Trail leading up into Eastern Mountain Range
+      { x: -14, z: 8, w: 2.4, h: 24, rot: 1.1 }, // Pathway connecting Farm to River Fishing Pier
+      { x: 4, z: 45, w: 3.2, h: 55, rot: 0 }, // Scenic connection from farm to highway
+      { x: 38, z: 65, w: 2.5, h: 50, rot: -0.6 }, // Mountain Pass winding trail
+      { x: -32, z: 55, w: 2.8, h: 45, rot: 0.7 } // Lakeside Watermill trail
     ];
 
     paths.forEach(p => {
@@ -162,6 +233,897 @@ class FarmWorld {
       pathMesh.receiveShadow = true;
       this.scene.add(pathMesh);
     });
+  }
+
+  // ----------------------------------------------------
+  // MASSIVE EXPANDED WORLD: NORTH TOWN VILLAGE & PLAZA
+  // ----------------------------------------------------
+  buildNorthTownVillage() {
+    this.townGroup = new THREE.Group();
+
+    // 1. Town Central Plaza (X: 4, Z: 110)
+    const plazaGeo = new THREE.CylinderGeometry(18, 19, 0.1, 28);
+    const plaza = new THREE.Mesh(plazaGeo, this.materials.stonePath);
+    plaza.position.set(4, 0.05, 110);
+    plaza.receiveShadow = true;
+    this.townGroup.add(plaza);
+
+    // Central Multi-Tiered Water Fountain
+    const fBase = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.6, 0.6, 18), this.materials.rockGrey);
+    fBase.position.set(4, 0.35, 110);
+    this.townGroup.add(fBase);
+
+    const fWater = new THREE.Mesh(new THREE.CylinderGeometry(3.8, 3.8, 0.1, 18), this.materials.waterSparkle);
+    fWater.position.set(4, 0.65, 110);
+    this.townGroup.add(fWater);
+
+    const fPillar = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, 2.2, 12), this.materials.rockGrey);
+    fPillar.position.set(4, 1.4, 110);
+    this.townGroup.add(fPillar);
+
+    const fBowl = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 1.2, 0.4, 14), this.materials.rockGrey);
+    fBowl.position.set(4, 2.2, 110);
+    this.townGroup.add(fBowl);
+
+    const fTopWater = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 8), this.materials.waterDeep);
+    fTopWater.position.set(4, 2.6, 110);
+    this.townGroup.add(fTopWater);
+
+    // 4 Plaza Park Benches (Interactive Sit Spots!)
+    const benchAngles = [0, Math.PI / 2, Math.PI, Math.PI * 1.5];
+    benchAngles.forEach(ang => {
+      const bx = 4 + Math.cos(ang) * 9.5;
+      const bz = 110 + Math.sin(ang) * 9.5;
+      const bench = new THREE.Group();
+      bench.position.set(bx, 0, bz);
+      bench.rotation.y = ang + Math.PI / 2;
+
+      const seat = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.12, 0.6), this.materials.woodPlank);
+      seat.position.y = 0.5;
+      bench.add(seat);
+
+      const back = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.6, 0.1), this.materials.woodPlank);
+      back.position.set(0, 0.85, -0.28);
+      bench.add(back);
+
+      [-1.0, 1.0].forEach(lx => {
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 0.5), this.materials.tractorMetal);
+        leg.position.set(lx, 0.25, 0);
+        bench.add(leg);
+      });
+
+      this.townGroup.add(bench);
+
+      // Register interactive sit spot
+      this.furnitureSpots.push({
+        type: 'sit',
+        name: 'Town Plaza Park Bench',
+        x: bx,
+        y: 0,
+        z: bz,
+        rot: ang + Math.PI / 2
+      });
+    });
+
+    // 2. Gas & Repair Service Station (X: 28, Z: 78)
+    const gasStation = new THREE.Group();
+    gasStation.position.set(28, 0, 78);
+
+    // Canopy Roof
+    const canopyRoof = new THREE.Mesh(new THREE.BoxGeometry(14, 0.5, 9), this.materials.gasYellow);
+    canopyRoof.position.set(0, 4.5, 0);
+    canopyRoof.castShadow = true;
+    gasStation.add(canopyRoof);
+
+    // Canopy Support Pillars
+    [[-5.5, -3], [5.5, -3], [-5.5, 3], [5.5, 3]].forEach(([px, pz]) => {
+      const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 4.5, 8), this.materials.tractorMetal);
+      pillar.position.set(px, 2.25, pz);
+      pillar.castShadow = true;
+      gasStation.add(pillar);
+    });
+
+    // 2 Fuel Pumps
+    [-2.8, 2.8].forEach(fx => {
+      const pump = new THREE.Group();
+      pump.position.set(fx, 0, 0);
+
+      const body = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.8, 0.7), this.materials.tractorRed);
+      body.position.y = 0.9;
+      pump.add(body);
+
+      const screen = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.4, 0.75), this.materials.glassMat);
+      screen.position.set(0, 1.25, 0);
+      pump.add(screen);
+
+      gasStation.add(pump);
+    });
+
+    // Gas Station Store Building
+    const storeBody = new THREE.Mesh(new THREE.BoxGeometry(10, 4.0, 6), this.materials.stonePath);
+    storeBody.position.set(0, 2.0, -8.0);
+    storeBody.castShadow = true;
+    gasStation.add(storeBody);
+
+    const storeRoof = new THREE.Mesh(new THREE.BoxGeometry(10.6, 0.4, 6.6), this.materials.roofRed);
+    storeRoof.position.set(0, 4.2, -8.0);
+    gasStation.add(storeRoof);
+
+    this.townGroup.add(gasStation);
+
+    // 3. Five Town Cottages & Houses
+    const townHouses = [
+      { x: -18, z: 92, rot: 0.2, wallMat: this.materials.houseWall, roofMat: this.materials.roofBlue, name: 'Blue Horizon Cottage' },
+      { x: -22, z: 120, rot: -0.3, wallMat: this.materials.brickWall, roofMat: this.materials.roofRed, name: 'Red Brick Manor' },
+      { x: 26, z: 118, rot: 0.4, wallMat: this.materials.woodLight, roofMat: this.materials.roofOrange, name: 'Sunny Timber Villa' },
+      { x: -14, z: 66, rot: 0, wallMat: this.materials.woodPlank, roofMat: this.materials.roofWood, name: 'Maple Wood Cabin' },
+      { x: 32, z: 96, rot: -0.5, wallMat: this.materials.houseWall, roofMat: this.materials.roofDark, name: 'Town General Store' }
+    ];
+
+    townHouses.forEach(h => {
+      const house = new THREE.Group();
+      house.position.set(h.x, 0, h.z);
+      house.rotation.y = h.rot;
+
+      // House Body
+      const body = new THREE.Mesh(new THREE.BoxGeometry(7.0, 4.2, 5.5), h.wallMat);
+      body.position.y = 2.1;
+      body.castShadow = true;
+      house.add(body);
+
+      // Gabled Roof
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(5.4, 2.6, 4), h.roofMat);
+      roof.position.y = 5.2;
+      roof.rotation.y = Math.PI / 4;
+      roof.scale.set(1.1, 1.0, 0.9);
+      roof.castShadow = true;
+      house.add(roof);
+
+      // Front Door
+      const door = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.2, 0.1), this.materials.woodDark);
+      door.position.set(0, 1.1, 2.8);
+      house.add(door);
+
+      // Windows
+      [-2.0, 2.0].forEach(wx => {
+        const win = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.1, 0.1), this.materials.glassMat);
+        win.position.set(wx, 2.4, 2.8);
+        house.add(win);
+      });
+
+      // Brick Chimney
+      const chimney = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.8, 0.8), this.materials.brickWall);
+      chimney.position.set(2.2, 5.2, -1.2);
+      house.add(chimney);
+
+      // Front Porch Bench / Chair (Interactive Sit Spot!)
+      const chair = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.4, 0.6), this.materials.woodPlank);
+      chair.position.set(-2.2, 0.4, 3.4);
+      house.add(chair);
+
+      this.furnitureSpots.push({
+        type: 'sit',
+        name: h.name + ' Porch Chair',
+        x: h.x - Math.cos(h.rot) * 2.2,
+        y: 0,
+        z: h.z + Math.sin(h.rot) * 3.4,
+        rot: h.rot
+      });
+
+      this.townGroup.add(house);
+    });
+
+    this.scene.add(this.townGroup);
+  }
+
+  // ----------------------------------------------------
+  // MASSIVE EXPANDED WORLD: 1. DENSE NORTH-WEST FOREST & CAMP
+  // ----------------------------------------------------
+  buildForestArea() {
+    this.forestGroup = new THREE.Group();
+
+    // Forest floor patches (dark mossy grass)
+    const forestFloorGeo = new THREE.CylinderGeometry(55, 58, 0.1, 28);
+    const forestFloor = new THREE.Mesh(forestFloorGeo, this.materials.grassDark);
+    forestFloor.position.set(-60, 0.01, -65);
+    this.forestGroup.add(forestFloor);
+
+    // 50+ Forest Trees (Tall Conifer Pines, Spreading Oaks, Birch Trees)
+    const treeCoords = [
+      [-35, -45], [-42, -48], [-38, -58], [-48, -52], [-55, -45], [-62, -50],
+      [-30, -65], [-45, -68], [-52, -72], [-65, -62], [-72, -55], [-78, -68],
+      [-36, -80], [-48, -84], [-58, -82], [-68, -78], [-80, -82], [-88, -70],
+      [-28, -52], [-50, -60], [-64, -68], [-74, -75], [-40, -92], [-54, -96],
+      [-65, -90], [-76, -88], [-85, -85], [-92, -78], [-32, -74], [-44, -76],
+      [-58, -55], [-70, -48], [-82, -58], [-48, -40], [-60, -38], [-72, -42],
+      [-25, -60], [-35, -70], [-85, -62], [-90, -52], [-60, -75], [-75, -65],
+      [-100, -60], [-105, -75], [-95, -90], [-80, -100], [-65, -105], [-50, -108]
+    ];
+
+    treeCoords.forEach(([x, z], idx) => {
+      const tree = new THREE.Group();
+      tree.position.set(x, 0, z);
+
+      if (idx % 3 === 0) {
+        // Tall Conifer Pine Tree
+        const trunkGeo = new THREE.CylinderGeometry(0.25, 0.35, 3.2, 6);
+        const trunk = new THREE.Mesh(trunkGeo, this.materials.trunk);
+        trunk.position.y = 1.6;
+        trunk.castShadow = true;
+        tree.add(trunk);
+
+        // 3 Layered Pine Needles Cones
+        [
+          { r: 2.2, h: 2.6, y: 3.2 },
+          { r: 1.7, h: 2.2, y: 4.8 },
+          { r: 1.2, h: 1.8, y: 6.2 }
+        ].forEach(layer => {
+          const cone = new THREE.Mesh(new THREE.ConeGeometry(layer.r, layer.h, 7), this.materials.pineGreen);
+          cone.position.y = layer.y;
+          cone.castShadow = true;
+          tree.add(cone);
+        });
+
+      } else if (idx % 3 === 1) {
+        // Lush Spreading Oak Tree
+        const trunkGeo = new THREE.CylinderGeometry(0.3, 0.45, 2.4, 7);
+        const trunk = new THREE.Mesh(trunkGeo, this.materials.trunk);
+        trunk.position.y = 1.2;
+        trunk.castShadow = true;
+        tree.add(trunk);
+
+        const crown = new THREE.Mesh(new THREE.DodecahedronGeometry(2.2, 1), this.materials.leaves);
+        crown.position.y = 3.6;
+        crown.scale.set(1.2, 1.0, 1.2);
+        crown.castShadow = true;
+        tree.add(crown);
+
+      } else {
+        // Birch / Blossom Grove Tree
+        const trunkGeo = new THREE.CylinderGeometry(0.2, 0.28, 2.8, 6);
+        const trunk = new THREE.Mesh(trunkGeo, this.materials.woodLight);
+        trunk.position.y = 1.4;
+        tree.add(trunk);
+
+        const crown = new THREE.Mesh(new THREE.SphereGeometry(1.8, 7, 7), this.materials.leavesLight);
+        crown.position.y = 3.4;
+        tree.add(crown);
+      }
+
+      this.forestGroup.add(tree);
+    });
+
+    // Forest Campfire Clearing with Tents & Log Seats
+    const campGroup = new THREE.Group();
+    campGroup.position.set(-56, 0, -62);
+
+    // Stone fire ring
+    for (let a = 0; a < 8; a++) {
+      const angle = (a / 8) * Math.PI * 2;
+      const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.25, 0), this.materials.rockGrey);
+      rock.position.set(Math.cos(angle) * 0.9, 0.15, Math.sin(angle) * 0.9);
+      campGroup.add(rock);
+    }
+
+    // Fire logs & glowing flame
+    const log1 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.1, 5), this.materials.campfireWood);
+    log1.rotation.set(0.3, 0.4, 0.8);
+    log1.position.y = 0.2;
+    campGroup.add(log1);
+
+    const log2 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.1, 5), this.materials.campfireWood);
+    log2.rotation.set(-0.3, -0.4, -0.8);
+    log2.position.y = 0.2;
+    campGroup.add(log2);
+
+    const flame = new THREE.Mesh(new THREE.ConeGeometry(0.4, 0.85, 6), this.materials.campfireGlow);
+    flame.position.y = 0.55;
+    campGroup.add(flame);
+
+    const fireLight = new THREE.PointLight(0xff7043, 2.5, 18);
+    fireLight.position.set(0, 1.2, 0);
+    campGroup.add(fireLight);
+    this.nightLights.push({ light: fireLight, intensity: 3.2 });
+
+    // Wooden Log Benches for sitting around the campfire (Interactive Sit Spots!)
+    [-2.2, 2.2].forEach((bz, bidx) => {
+      const bench = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 2.4, 6), this.materials.woodPlank);
+      bench.rotation.z = Math.PI / 2;
+      bench.position.set(0, 0.25, bz);
+      campGroup.add(bench);
+
+      this.furnitureSpots.push({
+        type: 'sit',
+        name: 'Campfire Log Seat ' + (bidx + 1),
+        x: -56,
+        y: 0,
+        z: -62 + bz,
+        rot: 0
+      });
+    });
+
+    // 2 Camping Canvas A-Frame Tents (with sleeping mats - Interactive Lie Down Spots!)
+    [
+      { x: -5.5, z: 3.5, rot: 0.6 },
+      { x: 5.5, z: 3.5, rot: -0.6 }
+    ].forEach((t, tidx) => {
+      const tent = new THREE.Group();
+      tent.position.set(t.x, 0, t.z);
+      tent.rotation.y = t.rot;
+
+      const tentMesh = new THREE.Mesh(new THREE.ConeGeometry(2.2, 2.4, 4), this.materials.tentCloth);
+      tentMesh.position.y = 1.2;
+      tentMesh.rotation.y = Math.PI / 4;
+      tentMesh.scale.set(1.2, 1.0, 1.6);
+      tentMesh.castShadow = true;
+      tent.add(tentMesh);
+
+      // Sleeping Mat inside tent (Interactive Lie Down spot!)
+      const mat = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.08, 2.2), this.materials.wheatSeed);
+      mat.position.set(0, 0.04, 0);
+      tent.add(mat);
+
+      campGroup.add(tent);
+
+      this.furnitureSpots.push({
+        type: 'lie',
+        name: 'Tent ' + (tidx + 1) + ' Sleeping Bed',
+        x: -56 + t.x,
+        y: 0,
+        z: -62 + t.z,
+        rot: t.rot
+      });
+    });
+
+    this.forestGroup.add(campGroup);
+    this.scene.add(this.forestGroup);
+  }
+
+  // ----------------------------------------------------
+  // MASSIVE EXPANDED WORLD: 2. ROCKY EASTERN MOUNTAIN RANGE & MINE
+  // ----------------------------------------------------
+  buildMountainRange() {
+    this.mountainGroup = new THREE.Group();
+
+    // 10 Mountain Peaks
+    const peaks = [
+      { x: 55, z: -25, r: 18, h: 22 },
+      { x: 75, z: -45, r: 24, h: 32 },
+      { x: 88, z: -15, r: 22, h: 28 },
+      { x: 68, z: 5, r: 20, h: 26 },
+      { x: 92, z: 25, r: 26, h: 34 },
+      { x: 58, z: 35, r: 16, h: 18 },
+      { x: 80, z: 55, r: 22, h: 25 },
+      { x: 105, z: -55, r: 30, h: 42 },
+      { x: 115, z: 10, r: 32, h: 46 },
+      { x: 100, z: 75, r: 28, h: 36 }
+    ];
+
+    peaks.forEach(p => {
+      const peakGroup = new THREE.Group();
+      peakGroup.position.set(p.x, 0, p.z);
+
+      // Rocky base cone
+      const baseMesh = new THREE.Mesh(
+        new THREE.ConeGeometry(p.r, p.h, 7),
+        this.materials.mountainRock
+      );
+      baseMesh.position.y = p.h / 2;
+      baseMesh.castShadow = true;
+      baseMesh.receiveShadow = true;
+      peakGroup.add(baseMesh);
+
+      // Snow-capped summit
+      const snowHeight = p.h * 0.32;
+      const snowMesh = new THREE.Mesh(
+        new THREE.ConeGeometry(p.r * 0.35, snowHeight, 7),
+        this.materials.mountainSnow
+      );
+      snowMesh.position.y = p.h - (snowHeight / 2);
+      peakGroup.add(snowMesh);
+
+      // Mountain foot boulders & glowing crystal ore nodes
+      for (let b = 0; b < 4; b++) {
+        const angle = (b / 4) * Math.PI * 2 + Math.random() * 0.5;
+        const dist = p.r * 0.85;
+        const boulder = new THREE.Mesh(new THREE.DodecahedronGeometry(1.2 + Math.random() * 1.5, 0), this.materials.rockGrey);
+        boulder.position.set(Math.cos(angle) * dist, 0.8, Math.sin(angle) * dist);
+        peakGroup.add(boulder);
+
+        // Shiny blue / gold crystal ore nodes
+        const crystalMat = (b % 2 === 0) ? this.materials.crystalOre : this.materials.goldOre;
+        const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(0.65, 0), crystalMat);
+        crystal.position.set(Math.cos(angle) * (dist - 1.2), 0.7, Math.sin(angle) * (dist - 1.2));
+        crystal.rotation.set(0.4, 0.5, 0.2);
+        peakGroup.add(crystal);
+      }
+
+      this.mountainGroup.add(peakGroup);
+    });
+
+    // Mountain Overlook Wooden Vista Deck (X: 46, Z: -14)
+    const vistaDeck = new THREE.Mesh(new THREE.BoxGeometry(8.0, 0.4, 8.0), this.materials.woodPlank);
+    vistaDeck.position.set(46, 3.5, -14);
+    this.mountainGroup.add(vistaDeck);
+
+    // Vista fence railing & telescope
+    const vistaRailing = new THREE.Mesh(new THREE.BoxGeometry(8.2, 0.8, 0.1), this.materials.fence);
+    vistaRailing.position.set(46, 4.0, -18.0);
+    this.mountainGroup.add(vistaRailing);
+
+    // Observation Bench on Vista Deck (Interactive Sit Spot!)
+    const vistaBench = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.45, 0.7), this.materials.woodPlank);
+    vistaBench.position.set(46, 3.85, -12);
+    this.mountainGroup.add(vistaBench);
+
+    this.furnitureSpots.push({
+      type: 'sit',
+      name: 'Mountain Summit Vista Bench',
+      x: 46,
+      y: 3.5,
+      z: -12,
+      rot: Math.PI
+    });
+
+    // Alpine Mountain Chalet (X: 62, Z: -36)
+    const chalet = new THREE.Group();
+    chalet.position.set(62, 0, -36);
+
+    const chBody = new THREE.Mesh(new THREE.BoxGeometry(8, 4.5, 6), this.materials.woodDark);
+    chBody.position.y = 2.25;
+    chalet.add(chBody);
+
+    const chRoof = new THREE.Mesh(new THREE.ConeGeometry(6.2, 3.2, 4), this.materials.roofWood);
+    chRoof.position.y = 5.8;
+    chRoof.rotation.y = Math.PI / 4;
+    chalet.add(chRoof);
+
+    this.mountainGroup.add(chalet);
+
+    this.scene.add(this.mountainGroup);
+  }
+
+  // ----------------------------------------------------
+  // MASSIVE EXPANDED WORLD: 3. FLOWING RIVER, LAKE & WATERMILL
+  // ----------------------------------------------------
+  buildRiverAndLakes() {
+    this.riverGroup = new THREE.Group();
+
+    // Curving River Segments spanning from North-West to South-West
+    const riverSegments = [
+      { x: -28, z: -35, w: 9.0, l: 30, rot: -0.4 },
+      { x: -22, z: -10, w: 9.5, l: 28, rot: 0.1 },
+      { x: -20, z: 15, w: 10.0, l: 30, rot: 0.35 },
+      { x: -25, z: 42, w: 11.0, l: 32, rot: -0.2 },
+      { x: -38, z: 68, w: 14.0, l: 36, rot: -0.5 },
+      { x: -58, z: 95, w: 34.0, l: 50, rot: -0.6 } // Vast Sunset Lake
+    ];
+
+    riverSegments.forEach(seg => {
+      const waterMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(seg.w, seg.l),
+        this.materials.water
+      );
+      waterMesh.rotation.x = -Math.PI / 2;
+      waterMesh.rotation.z = seg.rot;
+      waterMesh.position.set(seg.x, 0.05, seg.z);
+      this.riverGroup.add(waterMesh);
+
+      // Register water collision zone for swimming & fishing
+      this.waterZones.push({
+        x: seg.x,
+        z: seg.z,
+        radius: Math.max(seg.w, seg.l) * 0.55
+      });
+    });
+
+    // 2 Wooden Footbridges crossing the river
+    [
+      { x: -21, z: -5, rot: 1.65 },
+      { x: -22, z: 28, rot: 1.95 }
+    ].forEach(br => {
+      const bridge = new THREE.Group();
+      bridge.position.set(br.x, 0, br.z);
+      bridge.rotation.y = br.rot;
+
+      // Bridge Arch Deck
+      const deck = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.3, 11.5), this.materials.bridgeWood);
+      deck.position.y = 0.45;
+      bridge.add(deck);
+
+      // Bridge Side Railings
+      [-1.7, 1.7].forEach(rx => {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.8, 11.5), this.materials.woodDark);
+        rail.position.set(rx, 0.95, 0);
+        bridge.add(rail);
+
+        [-4.5, 0, 4.5].forEach(sz => {
+          const stilt = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.4, 6), this.materials.woodDark);
+          stilt.position.set(rx, -0.2, sz);
+          bridge.add(stilt);
+        });
+      });
+
+      this.riverGroup.add(bridge);
+    });
+
+    // 2 Wooden Fishing Docks (Pier 1 on Main River, Pier 2 on South Lake)
+    const docks = [
+      { x: -16.5, z: 12.0, rot: 0.4, name: 'Meadow River Pier' },
+      { x: -48.0, z: 82.0, rot: -0.7, name: 'Sunset Lake Dock' }
+    ];
+
+    docks.forEach(d => {
+      const dockGroup = new THREE.Group();
+      dockGroup.position.set(d.x, 0, d.z);
+      dockGroup.rotation.y = d.rot;
+
+      const plank = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.22, 6.5), this.materials.woodPlank);
+      plank.position.set(0, 0.25, 2.2);
+      dockGroup.add(plank);
+
+      [[-1.5, 5.2], [1.5, 5.2], [-1.5, -0.5], [1.5, -0.5]].forEach(([px, pz]) => {
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 1.3, 6), this.materials.woodDark);
+        post.position.set(px, 0.6, pz);
+        dockGroup.add(post);
+      });
+
+      // Fishing Dock Bench (Interactive Sit Spot!)
+      const dBench = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.35, 0.5), this.materials.woodPlank);
+      dBench.position.set(0, 0.5, 0.5);
+      dockGroup.add(dBench);
+
+      this.furnitureSpots.push({
+        type: 'sit',
+        name: d.name + ' Bench',
+        x: d.x,
+        y: 0,
+        z: d.z,
+        rot: d.rot
+      });
+
+      this.riverGroup.add(dockGroup);
+
+      // Register official fishing interaction hot-spot
+      this.fishingSpots.push({
+        x: d.x + Math.sin(d.rot) * 3.5,
+        z: d.z + Math.cos(d.rot) * 3.5,
+        name: d.name
+      });
+    });
+
+    // Lakeside Watermill Building with Spinning Waterwheel (X: -32, Z: 50)
+    const watermill = new THREE.Group();
+    watermill.position.set(-32, 0, 50);
+
+    const wmBody = new THREE.Mesh(new THREE.BoxGeometry(6.5, 5.0, 5.5), this.materials.stonePath);
+    wmBody.position.y = 2.5;
+    watermill.add(wmBody);
+
+    const wmRoof = new THREE.Mesh(new THREE.ConeGeometry(5.0, 2.8, 4), this.materials.roofDark);
+    wmRoof.position.y = 6.4;
+    wmRoof.rotation.y = Math.PI / 4;
+    watermill.add(wmRoof);
+
+    // Water Wheel Mesh
+    this.waterWheel = new THREE.Group();
+    this.waterWheel.position.set(3.6, 2.0, 0);
+
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.4, 12), this.materials.woodDark);
+    hub.rotation.z = Math.PI / 2;
+    this.waterWheel.add(hub);
+
+    for (let p = 0; p < 8; p++) {
+      const paddle = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 3.2), this.materials.woodPlank);
+      paddle.rotation.x = (p / 8) * Math.PI * 2;
+      this.waterWheel.add(paddle);
+    }
+    watermill.add(this.waterWheel);
+
+    this.riverGroup.add(watermill);
+    this.scene.add(this.riverGroup);
+  }
+
+  // ----------------------------------------------------
+  // GTA-STYLE WORLD VEHICLES FLEET & INTERACTION SYSTEM
+  // ----------------------------------------------------
+  buildWorldVehicles() {
+    this.worldVehiclesGroup = new THREE.Group();
+
+    // 14 Vehicles Stationed Across the Massive Open World
+    const vehicleSpawns = [
+      { id: 'farm_bike', type: 'bike', x: -3.5, z: -2.5, rot: 0.6, name: 'Farm Cruiser Bike' },
+      { id: 'farm_tractor', type: 'tractor', x: 11.0, z: -2.5, rot: -0.2, name: 'Farm Field Tractor' },
+      { id: 'market_pickup', type: 'pickup', x: 9.5, z: 16.0, rot: -Math.PI / 2, name: 'Roadside Pickup Truck' },
+      { id: 'paddock_cart', type: 'cart', x: 19.5, z: -4.5, rot: 0.4, name: 'Pony Cargo Cart' },
+      { id: 'gas_buggy', type: 'buggy', x: 22.0, z: 78.0, rot: 1.5, name: 'Gas Station Dune Buggy' },
+      { id: 'town_sedan', type: 'sedan', x: -12.0, z: 92.0, rot: 0.1, name: 'Town Blue Sedan' },
+      { id: 'mountain_quad', type: 'quad', x: 46.0, z: -14.0, rot: 2.2, name: 'Summit Quad ATV' },
+      { id: 'forest_buggy', type: 'buggy', x: -58.0, z: -58.0, rot: -0.8, name: 'Campground Sand Buggy' },
+      { id: 'lake_bike', type: 'bike', x: -44.0, z: 76.0, rot: 0.7, name: 'Sunset Lake Cruiser Bike' },
+      { id: 'mine_pickup', type: 'pickup', x: 72.0, z: 22.0, rot: -1.2, name: 'Crystal Quarry 4x4 Pickup' },
+      { id: 'plaza_sedan', type: 'sedan', x: 5.0, z: 112.0, rot: 0, name: 'Town Plaza Executive Sedan' },
+      { id: 'trail_quad', type: 'quad', x: -18.0, z: -38.0, rot: 0.5, name: 'Pine Trail Quad ATV' },
+      { id: 'mill_bike', type: 'bike', x: -32.0, z: 48.0, rot: -1.5, name: 'Watermill Commuter Bike' },
+      { id: 'town_cart', type: 'cart', x: 35.0, z: 95.0, rot: 0.8, name: 'Town General Store Wagon' }
+    ];
+
+    vehicleSpawns.forEach(sp => {
+      this.spawnWorldVehicle(sp.id, sp.type, sp.x, sp.z, sp.rot, sp.name);
+    });
+
+    this.scene.add(this.worldVehiclesGroup);
+  }
+
+  spawnWorldVehicle(id, type, x, z, rot, name) {
+    const mesh = this.createVehicle3DMesh(type);
+    mesh.position.set(x, 0, z);
+    mesh.rotation.y = rot || 0;
+    this.worldVehiclesGroup.add(mesh);
+
+    const vehObj = {
+      id: id || ('veh_' + Date.now()),
+      type: type,
+      name: name || (type.toUpperCase() + ' Vehicle'),
+      x: x,
+      z: z,
+      rot: rot || 0,
+      mesh: mesh,
+      active: true
+    };
+
+    this.worldVehicles.push(vehObj);
+    return vehObj;
+  }
+
+  createVehicle3DMesh(type) {
+    const group = new THREE.Group();
+
+    if (type === 'bike') {
+      const frame = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.4, 6), this.materials.bikeRed);
+      frame.rotation.z = Math.PI / 2;
+      frame.position.y = 0.55;
+      group.add(frame);
+
+      const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.7, 6), this.materials.tractorMetal);
+      bar.rotation.z = Math.PI / 2;
+      bar.position.set(0, 0.95, 0.65);
+      group.add(bar);
+
+      [-0.65, 0.65].forEach(z => {
+        const tire = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.045, 8, 16), this.materials.tractorTire);
+        tire.rotation.y = Math.PI / 2;
+        tire.position.set(0, 0.38, z);
+        group.add(tire);
+      });
+
+    } else if (type === 'buggy') {
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.45, 2.8), this.materials.buggyOrange);
+      frame.position.y = 0.45;
+      group.add(frame);
+
+      const cage = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.9, 1.5), this.materials.tractorMetal);
+      cage.position.set(0, 1.05, -0.2);
+      group.add(cage);
+
+      [[-0.9, 1.0], [0.9, 1.0], [-0.9, -1.0], [0.9, -1.0]].forEach(([wx, wz]) => {
+        const w = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.3, 12), this.materials.tractorTire);
+        w.rotation.z = Math.PI / 2;
+        w.position.set(wx, 0.42, wz);
+        group.add(w);
+      });
+
+    } else if (type === 'sedan') {
+      const body = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.6, 3.4), this.materials.sedanTeal);
+      body.position.y = 0.55;
+      group.add(body);
+
+      const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.65, 1.8), this.materials.glassMat);
+      cabin.position.set(0, 1.15, -0.2);
+      group.add(cabin);
+
+      [[-0.92, 1.1], [0.92, 1.1], [-0.92, -1.1], [0.92, -1.1]].forEach(([wx, wz]) => {
+        const w = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.22, 12), this.materials.tractorTire);
+        w.rotation.z = Math.PI / 2;
+        w.position.set(wx, 0.35, wz);
+        group.add(w);
+      });
+
+    } else if (type === 'quad') {
+      const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 1.8), this.materials.quadGreen);
+      body.position.y = 0.55;
+      group.add(body);
+
+      const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.8, 6), this.materials.tractorMetal);
+      handle.rotation.z = Math.PI / 2;
+      handle.position.set(0, 0.95, 0.6);
+      group.add(handle);
+
+      [[-0.7, 0.65], [0.7, 0.65], [-0.7, -0.65], [0.7, -0.65]].forEach(([wx, wz]) => {
+        const w = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.28, 12), this.materials.tractorTire);
+        w.rotation.z = Math.PI / 2;
+        w.position.set(wx, 0.38, wz);
+        group.add(w);
+      });
+
+    } else if (type === 'tractor') {
+      const body = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.2, 2.4), this.materials.tractorGreen);
+      body.position.y = 1.0;
+      group.add(body);
+
+      const hood = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.9, 1.4), this.materials.tractorGreen);
+      hood.position.set(0, 0.9, 1.1);
+      group.add(hood);
+
+      const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.2, 6), this.materials.tractorMetal);
+      pipe.position.set(0.45, 1.8, 1.3);
+      group.add(pipe);
+
+      // Big rear wheels, smaller front wheels
+      [[-0.9, -0.6], [0.9, -0.6]].forEach(([wx, wz]) => {
+        const w = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.35, 14), this.materials.tractorTire);
+        w.rotation.z = Math.PI / 2;
+        w.position.set(wx, 0.7, wz);
+        group.add(w);
+      });
+      [[-0.75, 1.1], [0.75, 1.1]].forEach(([wx, wz]) => {
+        const w = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.25, 12), this.materials.tractorTire);
+        w.rotation.z = Math.PI / 2;
+        w.position.set(wx, 0.45, wz);
+        group.add(w);
+      });
+
+    } else if (type === 'pickup') {
+      const cab = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.9, 1.3), this.materials.pickupBlue);
+      cab.position.set(0, 0.85, 0.4);
+      group.add(cab);
+
+      const bed = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.55, 1.4), this.materials.pickupBlue);
+      bed.position.set(0, 0.65, -0.9);
+      group.add(bed);
+
+      [[-0.78, 0.75], [0.78, 0.75], [-0.78, -0.95], [0.78, -0.95]].forEach(([wx, wz]) => {
+        const w = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.24, 12), this.materials.tractorTire);
+        w.rotation.z = Math.PI / 2;
+        w.position.set(wx, 0.34, wz);
+        group.add(w);
+      });
+
+    } else if (type === 'cart') {
+      const wagon = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.6, 1.7), this.materials.woodPlank);
+      wagon.position.set(0, 0.65, 0);
+      group.add(wagon);
+
+      [[-0.72, 0], [0.72, 0]].forEach(([wx, wz]) => {
+        const w = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.14, 14), this.materials.woodDark);
+        w.rotation.z = Math.PI / 2;
+        w.position.set(wx, 0.5, wz);
+        group.add(w);
+      });
+    }
+
+    return group;
+  }
+
+  // --- Proximity detection for GTA-Style vehicle entry ---
+  getNearbyWorldVehicle(px, pz, maxDist = 4.5) {
+    let closest = null;
+    let minD = maxDist;
+
+    for (let i = 0; i < this.worldVehicles.length; i++) {
+      const v = this.worldVehicles[i];
+      if (!v.active || !v.mesh.visible) continue;
+
+      const dx = px - v.mesh.position.x;
+      const dz = pz - v.mesh.position.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+
+      if (dist < minD) {
+        minD = dist;
+        closest = v;
+      }
+    }
+
+    return closest ? { vehicle: closest, dist: minD } : null;
+  }
+
+  enterWorldVehicle(vehObj) {
+    if (!vehObj) return;
+    vehObj.active = false;
+    vehObj.mesh.visible = false;
+  }
+
+  leaveWorldVehicle(type, px, pz, rot) {
+    // Spawn a world vehicle mesh right at the player's dismount position
+    this.spawnWorldVehicle('veh_' + Date.now(), type, px, pz, rot, type.toUpperCase());
+  }
+
+  // --- Proximity detection for Interactive Sit / Lie furniture ---
+  getNearbyFurniture(px, pz, maxDist = 3.5) {
+    let closest = null;
+    let minD = maxDist;
+
+    for (let i = 0; i < this.furnitureSpots.length; i++) {
+      const f = this.furnitureSpots[i];
+      const dx = px - f.x;
+      const dz = pz - f.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+
+      if (dist < minD) {
+        minD = dist;
+        closest = f;
+      }
+    }
+
+    return closest ? { spot: closest, dist: minD } : null;
+  }
+
+  // ----------------------------------------------------
+  // WATER & FISHING DETECTION HELPERS
+  // ----------------------------------------------------
+  isPointInWater(x, z) {
+    for (let i = 0; i < this.waterZones.length; i++) {
+      const wz = this.waterZones[i];
+      const dx = x - wz.x;
+      const dz = z - wz.z;
+      if (dx * dx + dz * dz < wz.radius * wz.radius) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  isNearFishingSpot(x, z) {
+    for (let i = 0; i < this.fishingSpots.length; i++) {
+      const spot = this.fishingSpots[i];
+      const dx = x - spot.x;
+      const dz = z - spot.z;
+      if (dx * dx + dz * dz < 20.0) { // within 4.5m of fishing dock
+        return { near: true, spot: spot };
+      }
+    }
+    // Also check if standing along river bank
+    if (this.isPointInWater(x - 2.5, z) || this.isPointInWater(x + 2.5, z) || this.isPointInWater(x, z - 2.5) || this.isPointInWater(x, z + 2.5)) {
+      return { near: true, spot: { name: 'River Bank', x: x, z: z } };
+    }
+    return { near: false, spot: null };
+  }
+
+  buildCropFences() {
+    this.cropFencesGroup = new THREE.Group();
+
+    // Perimeter wooden fences around crop plots zone to strictly protect crops from animals!
+    // Crop Zone spans X: 2.5 to 19.5, Z: -16.5 to -5.5
+    const fencePosts = [
+      [2.5, -5.5], [8.0, -5.5], [14.0, -5.5], [19.5, -5.5],
+      [19.5, -11.0], [19.5, -16.5],
+      [14.0, -16.5], [8.0, -16.5], [2.5, -16.5],
+      [2.5, -11.0]
+    ];
+
+    fencePosts.forEach(([fx, fz]) => {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 1.1, 6), this.materials.woodDark);
+      post.position.set(fx, 0.55, fz);
+      this.cropFencesGroup.add(post);
+    });
+
+    // Horizontal rails
+    const rails = [
+      { x: 11.0, z: -5.5, w: 17.0, d: 0.08 },
+      { x: 11.0, z: -16.5, w: 17.0, d: 0.08 },
+      { x: 2.5, z: -11.0, w: 0.08, d: 11.0 },
+      { x: 19.5, z: -11.0, w: 0.08, d: 11.0 }
+    ];
+
+    rails.forEach(r => {
+      [0.4, 0.8].forEach(ry => {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(r.w, 0.08, r.d), this.materials.fence);
+        rail.position.set(r.x, ry, r.z);
+        this.cropFencesGroup.add(rail);
+      });
+    });
+
+    this.scene.add(this.cropFencesGroup);
   }
 
   buildFarmHouse(level = 1) {
@@ -410,63 +1372,139 @@ class FarmWorld {
       b4.position.set(-2.15, 0.15, 0);
       plotGroup.add(b4);
 
-      // Spawn Plant Models in a 4x4 Grid
+      // Spawn Multi-Stage Plant Models in a 4x4 Grid
       const cropsArray = [];
       for (let row = -1.3; row <= 1.3; row += 0.85) {
         for (let col = -1.3; col <= 1.3; col += 0.85) {
-          const plantGroup = new THREE.Group();
-          plantGroup.position.set(col, 0.25, row);
+          const plantSlot = new THREE.Group();
+          plantSlot.position.set(col, 0.25, row);
+
+          // ----------------------------------------------------
+          // STAGE 0: Tiny Seed Mound & Early Dual-Leaf Sprout
+          // ----------------------------------------------------
+          const stage0 = new THREE.Group();
+          const seedMound = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 0.06, 6), this.materials.dirt);
+          seedMound.position.y = 0.03;
+          stage0.add(seedMound);
+
+          const sproutStem = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.02, 0.18, 5), this.materials.sproutGreen);
+          sproutStem.position.y = 0.1;
+          stage0.add(sproutStem);
+
+          const leaf1 = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.12, 4), this.materials.sproutGreen);
+          leaf1.rotation.z = -0.6;
+          leaf1.position.set(0.04, 0.16, 0);
+          stage0.add(leaf1);
+
+          const leaf2 = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.12, 4), this.materials.sproutGreen);
+          leaf2.rotation.z = 0.6;
+          leaf2.position.set(-0.04, 0.16, 0);
+          stage0.add(leaf2);
+          plantSlot.add(stage0);
+
+          // ----------------------------------------------------
+          // STAGE 1: Growing Green Stalk / Shoot with Bushy Leaves
+          // ----------------------------------------------------
+          const stage1 = new THREE.Group();
+          const midStalk = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.42, 6), this.materials.leavesLight);
+          midStalk.position.y = 0.21;
+          stage1.add(midStalk);
+
+          for (let l = 0; l < 4; l++) {
+            const sideLeaf = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.16, 0.12), this.materials.leaves);
+            sideLeaf.position.set((l % 2 === 0 ? 0.08 : -0.08), 0.15 + l * 0.07, 0);
+            sideLeaf.rotation.z = (l % 2 === 0 ? -0.5 : 0.5);
+            stage1.add(sideLeaf);
+          }
+          stage1.visible = false;
+          plantSlot.add(stage1);
+
+          // ----------------------------------------------------
+          // STAGE 2: Full Harvestable Ripe Crop
+          // ----------------------------------------------------
+          const stage2 = new THREE.Group();
 
           if (cfg.type === 'wheat') {
-            const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.65, 5), this.materials.wheat);
-            stalk.position.y = 0.32;
-            plantGroup.add(stalk);
+            const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.72, 5), this.materials.wheat);
+            stalk.position.y = 0.36;
+            stage2.add(stalk);
 
-            const head = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.35, 6), this.materials.wheat);
-            head.position.y = 0.65;
-            plantGroup.add(head);
+            const head = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.42, 6), this.materials.wheat);
+            head.position.y = 0.72;
+            stage2.add(head);
+
+            // Side golden awns
+            for (let a = 0; a < 3; a++) {
+              const awn = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.22, 3), this.materials.wheat);
+              awn.position.set((a % 2 === 0 ? 0.08 : -0.08), 0.65 + a * 0.06, 0);
+              awn.rotation.z = (a % 2 === 0 ? -0.6 : 0.6);
+              stage2.add(awn);
+            }
 
           } else if (cfg.type === 'corn') {
-            const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.9, 6), this.materials.corn);
-            stalk.position.y = 0.45;
-            plantGroup.add(stalk);
+            const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 1.1, 6), this.materials.corn);
+            stalk.position.y = 0.55;
+            stage2.add(stalk);
 
-            const cob = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.45, 6), this.materials.cornCob);
-            cob.position.set(0.1, 0.65, 0);
-            cob.rotation.z = -0.3;
-            plantGroup.add(cob);
+            const cob1 = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.5, 6), this.materials.cornCob);
+            cob1.position.set(0.12, 0.72, 0.05);
+            cob1.rotation.z = -0.35;
+            stage2.add(cob1);
+
+            const cob2 = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.45, 6), this.materials.cornCob);
+            cob2.position.set(-0.12, 0.52, -0.05);
+            cob2.rotation.z = 0.35;
+            stage2.add(cob2);
 
           } else if (cfg.type === 'carrot') {
-            const leaves = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.5, 6), this.materials.leavesLight);
-            leaves.position.y = 0.25;
-            plantGroup.add(leaves);
+            const leaves = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.65, 6), this.materials.leavesLight);
+            leaves.position.y = 0.35;
+            stage2.add(leaves);
 
-            const root = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.02, 0.35, 6), this.materials.carrot);
-            root.position.y = 0.08;
-            plantGroup.add(root);
+            const root = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.02, 0.42, 6), this.materials.carrot);
+            root.position.y = 0.12;
+            stage2.add(root);
 
           } else if (cfg.type === 'strawberry') {
-            const bush = new THREE.Mesh(new THREE.SphereGeometry(0.28, 6, 6), this.materials.leaves);
-            bush.position.y = 0.2;
-            plantGroup.add(bush);
+            const bush = new THREE.Mesh(new THREE.SphereGeometry(0.34, 7, 7), this.materials.leaves);
+            bush.position.y = 0.25;
+            stage2.add(bush);
 
-            const berry = new THREE.Mesh(new THREE.SphereGeometry(0.1, 5, 5), this.materials.strawberry);
-            berry.position.set(0.15, 0.22, 0.15);
-            plantGroup.add(berry);
+            [
+              [0.18, 0.25, 0.18],
+              [-0.18, 0.25, 0.18],
+              [0.0, 0.28, -0.22]
+            ].forEach(([bx, by, bz]) => {
+              const berry = new THREE.Mesh(new THREE.SphereGeometry(0.12, 5, 5), this.materials.strawberry);
+              berry.position.set(bx, by, bz);
+              stage2.add(berry);
+            });
 
           } else if (cfg.type === 'pumpkin') {
-            const pumpkin = new THREE.Mesh(new THREE.SphereGeometry(0.32, 8, 6), this.materials.pumpkin);
-            pumpkin.scale.set(1.2, 0.9, 1.2);
-            pumpkin.position.y = 0.25;
-            plantGroup.add(pumpkin);
+            const pumpkin = new THREE.Mesh(new THREE.SphereGeometry(0.38, 8, 6), this.materials.pumpkin);
+            pumpkin.scale.set(1.25, 0.85, 1.25);
+            pumpkin.position.y = 0.26;
+            stage2.add(pumpkin);
 
-            const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.05, 0.15), this.materials.leaves);
-            leaf.position.y = 0.45;
-            plantGroup.add(leaf);
+            const vine = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.2, 4), this.materials.woodDark);
+            vine.position.y = 0.52;
+            stage2.add(vine);
+
+            const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.05, 0.2), this.materials.leavesLight);
+            leaf.position.set(0.15, 0.48, 0.15);
+            stage2.add(leaf);
           }
 
-          plotGroup.add(plantGroup);
-          cropsArray.push(plantGroup);
+          stage2.visible = false;
+          plantSlot.add(stage2);
+
+          plotGroup.add(plantSlot);
+          cropsArray.push({
+            group: plantSlot,
+            stage0: stage0,
+            stage1: stage1,
+            stage2: stage2
+          });
         }
       }
 
@@ -2238,20 +3276,54 @@ class FarmWorld {
       }
     });
 
-    // 4. Crop Growth (Dynamically influenced by Weather System)
+    // 4. Crop Growth & Multi-Stage 3D Animation (Influenced by Weather System)
     const weatherMult = (weatherSystem && weatherSystem.getGrowthMultiplier) ? weatherSystem.getGrowthMultiplier() : 1.0;
+    const breeze = Math.sin(t * 2.5) * 0.06;
+
     this.plots.forEach(plot => {
       if (plot.unlocked && plot.growth < 1.0) {
         plot.growth = Math.min(1.0, plot.growth + delta * plot.growthSpeed * weatherMult);
-        const stage = 0.3 + plot.growth * 0.7;
-        plot.crops.forEach(crop => {
-          crop.scale.set(stage, stage, stage);
-          crop.position.y = 0.18 * stage;
-        });
         if (plot.growth >= 1.0) {
           plot.ready = true;
         }
       }
+
+      // Update 3D Stage meshes for all crop slots in this plot
+      const g = plot.growth;
+      plot.crops.forEach(cropItem => {
+        if (!cropItem.stage0) return;
+
+        if (g < 0.35) {
+          // STAGE 0: Seed Mound & Tiny Sprout shoot
+          cropItem.stage0.visible = true;
+          cropItem.stage1.visible = false;
+          cropItem.stage2.visible = false;
+
+          const s0 = 0.4 + (g / 0.35) * 0.6;
+          cropItem.stage0.scale.set(s0, s0, s0);
+
+        } else if (g < 0.80) {
+          // STAGE 1: Young Leafy Green Stalk
+          cropItem.stage0.visible = false;
+          cropItem.stage1.visible = true;
+          cropItem.stage2.visible = false;
+
+          const s1 = 0.5 + ((g - 0.35) / 0.45) * 0.5;
+          cropItem.stage1.scale.set(s1, s1, s1);
+          cropItem.stage1.rotation.z = breeze * 0.5;
+
+        } else {
+          // STAGE 2: Full Harvestable Ripe Crop
+          cropItem.stage0.visible = false;
+          cropItem.stage1.visible = false;
+          cropItem.stage2.visible = true;
+
+          const s2 = 0.85 + ((g - 0.80) / 0.20) * 0.15;
+          cropItem.stage2.scale.set(s2, s2, s2);
+          cropItem.stage2.rotation.z = breeze; // swaying wind animation
+          cropItem.stage2.rotation.x = Math.cos(t * 2.0) * 0.03;
+        }
+      });
     });
 
     // 5. Tractor Auto-Farming AI

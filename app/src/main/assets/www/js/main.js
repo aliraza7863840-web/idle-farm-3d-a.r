@@ -64,17 +64,17 @@ function initGame() {
   scene.background = new THREE.Color(0x81d4fa);
   scene.fog = new THREE.Fog(0x81d4fa, 45, 100);
 
-  // Isometric / Perspective Camera centered on Farm
-  const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 150);
+  // Isometric / Perspective Camera with expanded view distance for 600x600 world
+  const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 800);
   camera.position.set(9, 10.5, 12);
   camera.lookAt(0, 0.6, 0);
 
   const controls = new THREE.OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
-  controls.maxPolarAngle = Math.PI / 2.15;
-  controls.minDistance = 5;
-  controls.maxDistance = 55;
+  controls.maxPolarAngle = Math.PI / 2.05;
+  controls.minDistance = 2.5;
+  controls.maxDistance = 180;
   controls.target.set(0, 0.6, 0);
   controls.update();
 
@@ -197,14 +197,15 @@ function initGame() {
     });
   }
 
-  // --- Camera Modes & Smoothing Transitions System ---
-  let cameraMode = 'focus'; // 'focus' (following player) or 'map' (overhead farm overview)
+  // --- Multi-Camera Modes & Dynamic Perspective System ---
+  // Modes: 'third' (3rd-person follow), 'first' (1st-person cockpit/POV), 'map' (panoramic drone overview)
+  let cameraMode = 'third';
 
   const cameraTransition = {
     active: false,
     startTime: 0,
     duration: 0.85,
-    mode: 'focus',
+    mode: 'third',
     startCamPos: new THREE.Vector3(),
     startTarget: new THREE.Vector3(),
     targetTarget: new THREE.Vector3(),
@@ -218,11 +219,16 @@ function initGame() {
   function updateCameraUI() {
     const btnFocus = document.getElementById('btn-cam-reset');
     const btnMap = document.getElementById('btn-cam-overview');
-    if (btnFocus) btnFocus.classList.toggle('active', cameraMode === 'focus');
+    const btnMode = document.getElementById('btn-cam-mode');
+    if (btnFocus) btnFocus.classList.toggle('active', cameraMode === 'third');
     if (btnMap) btnMap.classList.toggle('active', cameraMode === 'map');
+    if (btnMode) {
+      const modeLabels = { 'third': '🚜 3rd Person', 'first': '👁️ 1st Person', 'map': '🗺️ Drone Map' };
+      btnMode.textContent = modeLabels[cameraMode] || '📹 Camera';
+    }
   }
 
-  function startCameraTransition(mode, duration = 0.85) {
+  function startCameraTransition(mode, duration = 0.75) {
     cameraMode = mode;
     updateCameraUI();
 
@@ -237,28 +243,54 @@ function initGame() {
     cameraTransition.startCamPos.copy(camera.position);
     cameraTransition.startTarget.copy(controls.target);
 
-    if (mode === 'focus') {
-      const p = player.group.position;
-      cameraTransition.targetTarget.set(p.x, p.y + 0.6, p.z);
-      cameraTransition.targetCamPos.set(p.x + 9, p.y + 10.5, p.z + 12);
-      if (window.uiController && window.uiController.showFloatingText) {
-        window.uiController.showFloatingText('🚜 Focus Mode: Following Character');
+    const p = player.group.position;
+    if (mode === 'third') {
+      const distOffset = player.mountedVehicle ? 13 : 10.5;
+      cameraTransition.targetTarget.set(p.x, p.y + 0.8, p.z);
+      cameraTransition.targetCamPos.set(p.x + 9, p.y + distOffset, p.z + 12);
+      if (window.uiController && window.uiController.showFloatNum) {
+        window.uiController.showFloatNum('📹 3rd Person Follow', window.innerWidth / 2, 80);
+      }
+    } else if (mode === 'first') {
+      const rot = player.group.rotation.y;
+      const headY = player.mountedVehicle ? 1.6 : 1.7;
+      const forwardX = Math.sin(rot);
+      const forwardZ = Math.cos(rot);
+      cameraTransition.targetCamPos.set(p.x + forwardX * 0.3, p.y + headY, p.z + forwardZ * 0.3);
+      cameraTransition.targetTarget.set(p.x + forwardX * 10, p.y + headY * 0.9, p.z + forwardZ * 10);
+      if (window.uiController && window.uiController.showFloatNum) {
+        window.uiController.showFloatNum('👁️ 1st Person POV / Cockpit View', window.innerWidth / 2, 80);
       }
     } else {
-      // Map Mode: Panoramic aerial overview of farm island
-      cameraTransition.targetTarget.set(1.5, 0.4, 0);
-      cameraTransition.targetCamPos.set(18, 25, 25);
-      if (window.uiController && window.uiController.showFloatingText) {
-        window.uiController.showFloatingText('🗺️ Map Mode: Farm Overview');
+      // Drone / Map Mode: High altitude panoramic view
+      cameraTransition.targetTarget.set(p.x, 0.4, p.z);
+      cameraTransition.targetCamPos.set(p.x + 22, 45, p.z + 32);
+      if (window.uiController && window.uiController.showFloatNum) {
+        window.uiController.showFloatNum('🗺️ Drone Overview Mode', window.innerWidth / 2, 80);
       }
     }
   }
 
-  window.focusCameraOnPlayer = (duration = 0.85) => {
-    startCameraTransition('focus', duration);
+  window.cycleCameraMode = () => {
+    if (cameraMode === 'third') {
+      startCameraTransition('first', 0.65);
+    } else if (cameraMode === 'first') {
+      startCameraTransition('map', 0.85);
+    } else {
+      startCameraTransition('third', 0.75);
+    }
+    return cameraMode;
   };
 
-  window.setCameraOverview = (duration = 0.95) => {
+  window.setCameraMode = (mode) => {
+    startCameraTransition(mode);
+  };
+
+  window.focusCameraOnPlayer = (duration = 0.75) => {
+    startCameraTransition('third', duration);
+  };
+
+  window.setCameraOverview = (duration = 0.85) => {
     startCameraTransition('map', duration);
   };
 
@@ -267,13 +299,13 @@ function initGame() {
   window.zoomCamera = (delta) => {
     const dir = new THREE.Vector3().subVectors(camera.position, controls.target);
     const currentLen = dir.length();
-    const newLen = Math.max(5, Math.min(55, currentLen + delta));
+    const newLen = Math.max(3, Math.min(160, currentLen + delta));
     dir.setLength(newLen);
     const destCamPos = controls.target.clone().add(dir);
 
     cameraTransition.active = true;
     cameraTransition.startTime = performance.now();
-    cameraTransition.duration = 0.25;
+    cameraTransition.duration = 0.22;
     cameraTransition.mode = cameraMode;
     cameraTransition.startCamPos.copy(camera.position);
     cameraTransition.startTarget.copy(controls.target);
@@ -281,7 +313,109 @@ function initGame() {
     cameraTransition.targetCamPos.copy(destCamPos);
   };
 
-  // If user begins dragging orbit controls, smoothly yield control
+  // GTA-Style Take / Enter / Exit Vehicle Controller
+  window.toggleEnterExitVehicle = () => {
+    if (!player || !farmWorld) return;
+    const p = player.group.position;
+
+    if (player.mountedVehicle) {
+      // Dismount vehicle and leave it parked in the world
+      const vehType = player.mountedVehicle;
+      const spawnX = p.x + Math.sin(player.group.rotation.y + Math.PI / 2) * 1.6;
+      const spawnZ = p.z + Math.cos(player.group.rotation.y + Math.PI / 2) * 1.6;
+      
+      farmWorld.leaveWorldVehicle(vehType, spawnX, spawnZ, player.group.rotation.y);
+      player.dismount();
+      gameState.currentVehicle = null;
+
+      if (window.soundEngine) window.soundEngine.playFootstep();
+      if (window.uiController) {
+        window.uiController.updateVehicleHUD();
+        window.uiController.showFloatNum('🚶 Exited Vehicle', window.innerWidth / 2, window.innerHeight / 2 - 20);
+      }
+    } else {
+      // Check if near any parked world vehicle
+      const nearbyVeh = farmWorld.getNearbyWorldVehicle(p.x, p.z, 4.5);
+      if (nearbyVeh) {
+        // Take / Steal this specific world vehicle (GTA-Style)
+        const vehType = nearbyVeh.type;
+        const vehName = nearbyVeh.name;
+        farmWorld.enterWorldVehicle(nearbyVeh);
+        player.mount(vehType);
+        gameState.currentVehicle = vehType;
+
+        if (window.soundEngine) {
+          if (vehType === 'bike') window.soundEngine.playBikeBell();
+          else window.soundEngine.playHorn();
+        }
+        if (window.uiController) {
+          window.uiController.updateVehicleHUD();
+          window.uiController.showFloatNum(`🏎️ Driving ${vehName}! Press E or Dismount to exit.`, window.innerWidth / 2, window.innerHeight / 2 - 25);
+        }
+      } else {
+        // Mount active garage vehicle (e.g. Starter Bike or Tractor)
+        const activeVeh = gameState.activeVehicle || 'bike';
+        player.mount(activeVeh);
+        gameState.currentVehicle = activeVeh;
+        if (window.uiController) {
+          window.uiController.updateVehicleHUD();
+          const name = gameState.vehicles[activeVeh] ? gameState.vehicles[activeVeh].name : 'Vehicle';
+          window.uiController.showFloatNum(`Riding ${name}!`, window.innerWidth / 2, window.innerHeight / 2 - 20);
+        }
+      }
+    }
+  };
+
+  // Player Jump Controller
+  window.triggerPlayerJump = () => {
+    if (player) {
+      player.jump();
+      if (window.soundEngine) window.soundEngine.playJump();
+    }
+  };
+
+  // Sit & Lie Down Interaction Controllers
+  window.toggleSit = () => {
+    if (!player) return;
+    if (player.isSitting) {
+      player.standUp();
+      if (window.uiController) window.uiController.showFloatNum('🧍 Stood Up', window.innerWidth / 2, window.innerHeight / 2 - 20);
+    } else {
+      const p = player.group.position;
+      const furn = farmWorld.getNearbyFurniture ? farmWorld.getNearbyFurniture(p.x, p.z, 3.5) : null;
+      if (furn && (furn.action === 'sit' || furn.action === 'bench' || furn.action === 'chair')) {
+        player.group.position.set(furn.x, 0.45, furn.z);
+        player.group.rotation.y = furn.rot;
+        player.sit();
+        if (window.uiController) window.uiController.showFloatNum(`🪑 Sitting on ${furn.name}`, window.innerWidth / 2, window.innerHeight / 2 - 20);
+      } else {
+        player.sit();
+        if (window.uiController) window.uiController.showFloatNum('🪑 Sitting Down', window.innerWidth / 2, window.innerHeight / 2 - 20);
+      }
+    }
+  };
+
+  window.toggleLieDown = () => {
+    if (!player) return;
+    if (player.isLying) {
+      player.standUp();
+      if (window.uiController) window.uiController.showFloatNum('🧍 Stood Up', window.innerWidth / 2, window.innerHeight / 2 - 20);
+    } else {
+      const p = player.group.position;
+      const furn = farmWorld.getNearbyFurniture ? farmWorld.getNearbyFurniture(p.x, p.z, 3.5) : null;
+      if (furn && (furn.action === 'lie' || furn.action === 'bed' || furn.action === 'lounger')) {
+        player.group.position.set(furn.x, 0.5, furn.z);
+        player.group.rotation.y = furn.rot;
+        player.lieDown();
+        if (window.uiController) window.uiController.showFloatNum(`🛏️ Resting on ${furn.name}`, window.innerWidth / 2, window.innerHeight / 2 - 20);
+      } else {
+        player.lieDown();
+        if (window.uiController) window.uiController.showFloatNum('🛏️ Lying Down to Rest', window.innerWidth / 2, window.innerHeight / 2 - 20);
+      }
+    }
+  };
+
+  // If user begins dragging orbit controls, yield camera transition
   controls.addEventListener('start', () => {
     if (cameraTransition.active) {
       cameraTransition.active = false;
@@ -471,6 +605,24 @@ function initGame() {
       }
     }
 
+    // Dynamic River Swimming & Water Physics Check
+    if (player && farmWorld) {
+      const pPos = player.group.position;
+      const inWater = farmWorld.isPointInWater(pPos.x, pPos.z);
+      if (inWater !== player.inWater) {
+        player.inWater = inWater;
+        player.isSwimming = inWater;
+        if (inWater) {
+          if (window.soundEngine) window.soundEngine.playSplash();
+          // If driving into deep river, dismount vehicle
+          if (player.mountedVehicle) {
+            player.dismount();
+            if (window.uiController) window.uiController.updateVehicleHUD();
+          }
+        }
+      }
+    }
+
     // Proximity Auto-Plant & Auto-Harvest
     farmWorld.plots.forEach(plot => {
       if (!plot.unlocked) return;
@@ -519,17 +671,32 @@ function initGame() {
       gameState.save();
     }
 
-    // --- Camera Smoothing Transitions & Character Following ---
+    // Proximity Interaction Tracking (World Vehicles & Furniture)
+    const pPos = player.group.position;
+    const nearbyWorldVeh = farmWorld.getNearbyWorldVehicle(pPos.x, pPos.z, 4.2);
+    const nearbyFurn = farmWorld.getNearbyFurniture ? farmWorld.getNearbyFurniture(pPos.x, pPos.z, 3.2) : null;
+    if (window.uiController && window.uiController.updateInteractionHUD) {
+      window.uiController.updateInteractionHUD(nearbyWorldVeh, nearbyFurn, player.mountedVehicle, player.isSitting, player.isLying);
+    }
+
+    // --- Camera Smoothing Transitions & Dynamic Perspectives ---
     if (cameraTransition.active) {
       const elapsed = (now - cameraTransition.startTime) / 1000;
       const progress = Math.min(1.0, elapsed / cameraTransition.duration);
       const t = easeInOutCubic(progress);
 
-      if (cameraTransition.mode === 'focus') {
-        // Keep destination dynamically aligned with moving character
-        const p = player.group.position;
-        cameraTransition.targetTarget.set(p.x, p.y + 0.6, p.z);
-        cameraTransition.targetCamPos.set(p.x + 9, p.y + 10.5, p.z + 12);
+      const p = player.group.position;
+      if (cameraTransition.mode === 'third') {
+        const distOffset = player.mountedVehicle ? 13 : 10.5;
+        cameraTransition.targetTarget.set(p.x, p.y + 0.8, p.z);
+        cameraTransition.targetCamPos.set(p.x + 9, p.y + distOffset, p.z + 12);
+      } else if (cameraTransition.mode === 'first') {
+        const rot = player.group.rotation.y;
+        const headY = player.mountedVehicle ? 1.55 : 1.65;
+        const forwardX = Math.sin(rot);
+        const forwardZ = Math.cos(rot);
+        cameraTransition.targetCamPos.set(p.x + forwardX * 0.25, p.y + headY, p.z + forwardZ * 0.25);
+        cameraTransition.targetTarget.set(p.x + forwardX * 12, p.y + headY * 0.9, p.z + forwardZ * 12);
       }
 
       camera.position.lerpVectors(cameraTransition.startCamPos, cameraTransition.targetCamPos, t);
@@ -540,14 +707,39 @@ function initGame() {
         camera.position.copy(cameraTransition.targetCamPos);
         controls.target.copy(cameraTransition.targetTarget);
       }
-    } else if (cameraMode === 'focus') {
-      // Smoothly follow the character position across the farm
+    } else if (cameraMode === 'third') {
+      // Third-person smooth follow with vehicle speed dynamics
       const p = player.group.position;
-      const desiredTarget = new THREE.Vector3(p.x, p.y + 0.6, p.z);
+      const desiredTarget = new THREE.Vector3(p.x, p.y + 0.8, p.z);
       const targetDiff = desiredTarget.sub(controls.target);
 
       if (targetDiff.lengthSq() > 0.00005) {
-        const followSpeed = Math.min(1.0, 5.0 * delta);
+        const followSpeed = Math.min(1.0, 5.5 * delta);
+        const moveStep = targetDiff.multiplyScalar(followSpeed);
+        controls.target.add(moveStep);
+        camera.position.add(moveStep);
+      }
+    } else if (cameraMode === 'first') {
+      // First-person driver / head perspective
+      const p = player.group.position;
+      const rot = player.group.rotation.y;
+      const headY = player.mountedVehicle ? 1.55 : 1.65;
+      const forwardX = Math.sin(rot);
+      const forwardZ = Math.cos(rot);
+
+      const eyePos = new THREE.Vector3(p.x + forwardX * 0.25, p.y + headY, p.z + forwardZ * 0.25);
+      const lookAtPos = new THREE.Vector3(p.x + forwardX * 15, p.y + headY * 0.9, p.z + forwardZ * 15);
+
+      camera.position.lerp(eyePos, Math.min(1.0, 12.0 * delta));
+      controls.target.lerp(lookAtPos, Math.min(1.0, 12.0 * delta));
+    } else if (cameraMode === 'map') {
+      // Drone mode: follow player smoothly from high altitude
+      const p = player.group.position;
+      const desiredTarget = new THREE.Vector3(p.x, 0.4, p.z);
+      const targetDiff = desiredTarget.sub(controls.target);
+
+      if (targetDiff.lengthSq() > 0.00005) {
+        const followSpeed = Math.min(1.0, 4.0 * delta);
         const moveStep = targetDiff.multiplyScalar(followSpeed);
         controls.target.add(moveStep);
         camera.position.add(moveStep);

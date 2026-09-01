@@ -104,11 +104,13 @@ class UIController {
     }
 
     // Camera Buttons
+    const btnCamMode = document.getElementById('btn-cam-mode');
     const btnCamReset = document.getElementById('btn-cam-reset');
     const btnCamOverview = document.getElementById('btn-cam-overview');
     const btnZoomIn = document.getElementById('btn-zoom-in');
     const btnZoomOut = document.getElementById('btn-zoom-out');
 
+    if (btnCamMode) btnCamMode.addEventListener('click', () => window.cycleCameraMode && window.cycleCameraMode());
     if (btnCamReset) btnCamReset.addEventListener('click', () => window.focusCameraOnPlayer && window.focusCameraOnPlayer());
     if (btnCamOverview) btnCamOverview.addEventListener('click', () => window.setCameraOverview && window.setCameraOverview());
     if (btnZoomIn) btnZoomIn.addEventListener('click', () => window.zoomCamera && window.zoomCamera(-5));
@@ -150,8 +152,320 @@ class UIController {
       });
     }
 
+    // --- Action HUD Cluster (Jump, Ride, Horn/Bell, Fish) ---
+    this.setupActionHUD();
+
     // Touch Joystick Virtual Controls
     this.setupJoystick();
+
+    // Keyboard & Mouse Controls (WASD, Arrows, Space, B, T, H, F, V)
+    this.setupKeyboardControls();
+  }
+
+  setupActionHUD() {
+    const btnJump = document.getElementById('btn-action-jump');
+    const btnMount = document.getElementById('btn-action-mount');
+    const btnHorn = document.getElementById('btn-action-horn');
+    const btnFish = document.getElementById('btn-action-fish');
+    const btnReel = document.getElementById('btn-fishing-reel');
+    const btnSit = document.getElementById('btn-action-sit');
+    const btnLie = document.getElementById('btn-action-lie');
+    const btnGtaEnter = document.getElementById('btn-gta-enter');
+
+    if (btnJump) {
+      btnJump.addEventListener('click', () => {
+        if (window.triggerPlayerJump) window.triggerPlayerJump();
+        else if (this.player) this.player.jump();
+      });
+    }
+
+    if (btnSit) {
+      btnSit.addEventListener('click', () => {
+        if (window.toggleSit) window.toggleSit();
+      });
+    }
+
+    if (btnLie) {
+      btnLie.addEventListener('click', () => {
+        if (window.toggleLieDown) window.toggleLieDown();
+      });
+    }
+
+    if (btnGtaEnter) {
+      btnGtaEnter.addEventListener('click', () => {
+        if (window.toggleEnterExitVehicle) window.toggleEnterExitVehicle();
+      });
+    }
+
+    if (btnMount) {
+      btnMount.addEventListener('click', () => {
+        if (window.toggleEnterExitVehicle) {
+          window.toggleEnterExitVehicle();
+        } else if (this.player) {
+          if (this.player.mountedVehicle) {
+            this.player.dismount();
+            this.updateVehicleHUD();
+            this.showFloatNum('🚶 On Foot', window.innerWidth / 2, window.innerHeight / 2 - 20);
+          } else {
+            const activeVeh = this.gameState.activeVehicle || 'bike';
+            this.player.mount(activeVeh);
+            this.updateVehicleHUD();
+            const vehName = activeVeh === 'tractor' ? '🚜 Tractor' : activeVeh === 'pickup' ? '🛻 Pickup' : activeVeh === 'cart' ? '🐴 Cart' : '🚲 Cruiser Bike';
+            this.showFloatNum(`Riding ${vehName}!`, window.innerWidth / 2, window.innerHeight / 2 - 20);
+          }
+        }
+      });
+    }
+
+    if (btnHorn) {
+      btnHorn.addEventListener('click', () => {
+        if (this.player && this.player.mountedVehicle) {
+          if (this.player.mountedVehicle === 'bike') {
+            if (window.soundEngine) window.soundEngine.playBikeBell();
+            this.showFloatNum('🔔 Ring Ring!', window.innerWidth / 2, window.innerHeight / 2 - 40);
+          } else {
+            if (window.soundEngine) window.soundEngine.playHorn();
+            this.showFloatNum('📯 Honk Honk!', window.innerWidth / 2, window.innerHeight / 2 - 40);
+          }
+        } else {
+          // If on foot, open Garage / Vehicles Sheet!
+          this.openSheet('vehicles');
+        }
+      });
+    }
+
+    if (btnFish) {
+      btnFish.addEventListener('click', () => {
+        this.handleFishingAction();
+      });
+    }
+
+    if (btnReel) {
+      btnReel.addEventListener('click', () => {
+        this.finishFishingCatch();
+      });
+    }
+  }
+
+  updateInteractionHUD(nearbyVeh, nearbyFurn, mountedVehicle, isSitting, isLying) {
+    // 1. GTA-Style Take Vehicle Prompt
+    const gtaPrompt = document.getElementById('gta-vehicle-prompt');
+    const gtaIcon = document.getElementById('gta-vehicle-icon');
+    const gtaTitle = document.getElementById('gta-vehicle-title');
+
+    if (gtaPrompt) {
+      if (!mountedVehicle && nearbyVeh) {
+        gtaPrompt.style.display = 'block';
+        if (gtaIcon) gtaIcon.textContent = nearbyVeh.icon || '🏎️';
+        if (gtaTitle) gtaTitle.textContent = `Take ${nearbyVeh.name}`;
+      } else {
+        gtaPrompt.style.display = 'none';
+      }
+    }
+
+    // 2. Sit & Lie Button Active Indicators
+    const btnSit = document.getElementById('btn-action-sit');
+    const btnLie = document.getElementById('btn-action-lie');
+    if (btnSit) btnSit.classList.toggle('active-action', !!isSitting);
+    if (btnLie) btnLie.classList.toggle('active-action', !!isLying);
+  }
+
+  updateVehicleHUD() {
+    const btnMount = document.getElementById('btn-action-mount');
+    const iconMount = document.getElementById('icon-action-mount');
+    const labelMount = document.getElementById('label-action-mount');
+    const iconHorn = document.getElementById('icon-action-horn');
+    const labelHorn = document.getElementById('label-action-horn');
+
+    if (!btnMount) return;
+
+    if (this.player && this.player.mountedVehicle) {
+      btnMount.classList.add('mounted');
+      const v = this.player.mountedVehicle;
+      if (iconMount) iconMount.textContent = '🚶';
+      if (labelMount) labelMount.textContent = 'Dismount';
+
+      if (iconHorn) iconHorn.textContent = v === 'bike' ? '🔔' : '📯';
+      if (labelHorn) labelHorn.textContent = v === 'bike' ? 'Bell' : 'Horn';
+    } else {
+      btnMount.classList.remove('mounted');
+      const active = this.gameState.activeVehicle || 'bike';
+      if (iconMount) iconMount.textContent = active === 'tractor' ? '🚜' : active === 'pickup' ? '🛻' : active === 'cart' ? '🐴' : '🚲';
+      if (labelMount) labelMount.textContent = 'Ride';
+
+      if (iconHorn) iconHorn.textContent = '🚗';
+      if (labelHorn) labelHorn.textContent = 'Garage';
+    }
+  }
+
+  handleFishingAction() {
+    if (!this.player || !this.farmWorld) return;
+
+    if (this.player.isFishing) {
+      // Reel line in early or catch
+      this.finishFishingCatch();
+      return;
+    }
+
+    const pPos = this.player.group.position;
+    const fishCheck = this.farmWorld.isNearFishingSpot(pPos.x, pPos.z);
+
+    if (!fishCheck.near && !this.player.inWater) {
+      this.showFloatNum('🎣 Walk closer to River or Fishing Dock!', window.innerWidth / 2, window.innerHeight / 2 - 20);
+      return;
+    }
+
+    // Cast fishing line
+    this.player.startFishing();
+    const btnFish = document.getElementById('btn-action-fish');
+    const fishCard = document.getElementById('fishing-hud-card');
+    const fishStatus = document.getElementById('fishing-hud-status');
+
+    if (btnFish) btnFish.classList.add('active-fishing');
+    if (fishCard) fishCard.style.display = 'flex';
+    if (fishStatus) fishStatus.textContent = '🎣 Cast line... Waiting for a bite!';
+
+    // Trigger fish bite timer between 2.5s and 4.5s
+    if (this.fishingBiteTimeout) clearTimeout(this.fishingBiteTimeout);
+    this.fishingBiteTimeout = setTimeout(() => {
+      if (this.player && this.player.isFishing) {
+        if (window.soundEngine) window.soundEngine.playFishBite();
+        if (fishStatus) fishStatus.textContent = '⚡ FISH ON THE HOOK! REEL IN NOW!';
+        if (fishCard) fishCard.style.borderColor = '#FF3D00';
+      }
+    }, 2800);
+  }
+
+  finishFishingCatch() {
+    if (!this.player) return;
+
+    const btnFish = document.getElementById('btn-action-fish');
+    const fishCard = document.getElementById('fishing-hud-card');
+    if (btnFish) btnFish.classList.remove('active-fishing');
+    if (fishCard) {
+      fishCard.style.display = 'none';
+      fishCard.style.borderColor = '#00E5FF';
+    }
+    if (this.fishingBiteTimeout) clearTimeout(this.fishingBiteTimeout);
+
+    const fishData = this.gameState.recordFishCatch();
+    this.player.stopFishing();
+    this.updateTopBar();
+
+    if (window.soundEngine) window.soundEngine.playFishCatch();
+    this.showFloatNum(`${fishData.icon} Caught a ${fishData.rarity} ${fishData.name}! (+${fishData.coins} 🪙)`, window.innerWidth / 2, window.innerHeight / 2 - 30);
+    this.player.triggerCheer();
+  }
+
+  setupKeyboardControls() {
+    const keysDown = {};
+
+    window.addEventListener('keydown', (e) => {
+      keysDown[e.key.toLowerCase()] = true;
+      keysDown[e.code] = true;
+
+      // Space -> Jump
+      if (e.code === 'Space' || e.key === ' ') {
+        e.preventDefault();
+        if (window.triggerPlayerJump) window.triggerPlayerJump();
+        else if (this.player) this.player.jump();
+      }
+
+      // E -> GTA Style Enter / Exit Vehicle
+      if (e.key.toLowerCase() === 'e' || e.code === 'KeyE') {
+        if (window.toggleEnterExitVehicle) window.toggleEnterExitVehicle();
+      }
+
+      // C -> Cycle Camera Mode (3rd Person -> 1st Person -> Drone Map)
+      if (e.key.toLowerCase() === 'c' || e.code === 'KeyC') {
+        if (window.cycleCameraMode) window.cycleCameraMode();
+      }
+
+      // X -> Sit Down / Stand Up
+      if (e.key.toLowerCase() === 'x' || e.code === 'KeyX') {
+        if (window.toggleSit) window.toggleSit();
+      }
+
+      // Z -> Lie Down / Stand Up
+      if (e.key.toLowerCase() === 'z' || e.code === 'KeyZ') {
+        if (window.toggleLieDown) window.toggleLieDown();
+      }
+
+      // B -> Bike toggle
+      if (e.key.toLowerCase() === 'b') {
+        if (this.player) {
+          if (this.player.mountedVehicle === 'bike') {
+            if (window.soundEngine) window.soundEngine.playBikeBell();
+          } else if (this.player.mountedVehicle) {
+            this.player.dismount();
+            this.updateVehicleHUD();
+          } else {
+            this.player.mount('bike');
+            this.updateVehicleHUD();
+          }
+        }
+      }
+
+      // T -> Tractor toggle
+      if (e.key.toLowerCase() === 't') {
+        if (this.player) {
+          if (this.player.mountedVehicle === 'tractor') {
+            if (window.soundEngine) window.soundEngine.playHorn();
+          } else {
+            this.player.mount('tractor');
+            this.updateVehicleHUD();
+          }
+        }
+      }
+
+      // H -> Bell or Horn
+      if (e.key.toLowerCase() === 'h') {
+        if (this.player && this.player.mountedVehicle === 'bike') {
+          if (window.soundEngine) window.soundEngine.playBikeBell();
+        } else if (this.player && this.player.mountedVehicle) {
+          if (window.soundEngine) window.soundEngine.playHorn();
+        }
+      }
+
+      // F -> Fishing
+      if (e.key.toLowerCase() === 'f') {
+        this.handleFishingAction();
+      }
+
+      // V -> Vehicles Garage
+      if (e.key.toLowerCase() === 'v') {
+        this.openSheet('vehicles');
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      keysDown[e.key.toLowerCase()] = false;
+      keysDown[e.code] = false;
+    });
+
+    // Process movement keys in requestAnimationFrame loop
+    const processKeyMovement = () => {
+      if (this.player) {
+        let dx = 0;
+        let dz = 0;
+
+        if (keysDown['w'] || keysDown['arrowup']) dz -= 1;
+        if (keysDown['s'] || keysDown['arrowdown']) dz += 1;
+        if (keysDown['a'] || keysDown['arrowleft']) dx -= 1;
+        if (keysDown['d'] || keysDown['arrowright']) dx += 1;
+
+        if (dx !== 0 || dz !== 0) {
+          const len = Math.sqrt(dx * dx + dz * dz);
+          dx /= len;
+          dz /= len;
+          const p = this.player.group.position;
+          const speedMultiplier = this.player.mountedVehicle ? 1.8 : 1.0;
+          this.player.moveTo(p.x + dx * 3.5 * speedMultiplier, p.z + dz * 3.5 * speedMultiplier);
+        }
+      }
+      requestAnimationFrame(processKeyMovement);
+    };
+    requestAnimationFrame(processKeyMovement);
   }
 
   setupJoystick() {
@@ -274,10 +588,118 @@ class UIController {
     } else if (type === 'weather') {
       this.sheetTitle.textContent = '🌦️ Farm Weather Forecast';
       this.renderWeatherSheet();
+    } else if (type === 'vehicles') {
+      this.sheetTitle.textContent = '🚗 Farm Garage & Rideable Vehicles';
+      this.renderVehiclesSheet();
     }
 
     this.modalBackdrop.classList.add('open');
     if (window.soundEngine) window.soundEngine.init();
+  }
+
+  // ----------------------------------------------------
+  // 6. FARM GARAGE & VEHICLES MANAGEMENT SHEET
+  // ----------------------------------------------------
+  renderVehiclesSheet() {
+    const vList = [
+      {
+        id: 'bike',
+        name: 'Classic Cruiser Bike',
+        icon: '🚲',
+        desc: 'Speedy two-wheeler with agile steering and a cheerful brass handlebar bell!',
+        speed: '+120% Speed (Fast)',
+        cost: 0,
+        unlocked: this.gameState.vehicles.bike.unlocked
+      },
+      {
+        id: 'tractor',
+        name: 'Heavy Field Tractor',
+        icon: '🚜',
+        desc: 'Heavy-duty diesel farm tractor with power plowing and automatic furrow harvesting!',
+        speed: '+35% Speed (Heavy)',
+        cost: 100,
+        unlocked: this.gameState.vehicles.tractor.unlocked || this.gameState.tractorUnlocked
+      },
+      {
+        id: 'pickup',
+        name: 'Country Cargo Pickup Truck',
+        icon: '🛻',
+        desc: 'Rugged 4x4 flatbed pickup truck for rapid long-distance hauling across the vast map!',
+        speed: '+150% Speed (Turbo)',
+        cost: 350,
+        unlocked: this.gameState.vehicles.pickup.unlocked
+      },
+      {
+        id: 'cart',
+        name: 'Rustic Pony Passenger Cart',
+        icon: '🐴',
+        desc: 'Charming wooden horse-drawn wagon for leisurely tours through the forest and mountains!',
+        speed: '+80% Speed (Moderate)',
+        cost: 220,
+        unlocked: this.gameState.vehicles.cart.unlocked
+      }
+    ];
+
+    const currentRiding = this.player ? this.player.mountedVehicle : null;
+
+    const grid = document.createElement('div');
+    grid.className = 'vehicle-grid';
+
+    vList.forEach(v => {
+      const isRiding = currentRiding === v.id;
+      const canBuy = !v.unlocked && this.gameState.coins >= v.cost;
+
+      const card = document.createElement('div');
+      card.className = `vehicle-card ${isRiding ? 'active-ride' : ''}`;
+      card.innerHTML = `
+        <div class="vehicle-info">
+          <span class="vehicle-avatar">${v.icon}</span>
+          <div>
+            <div class="vehicle-name">${v.name} ${isRiding ? '<span style="color:#7CFF01;font-size:0.72rem;font-weight:900;">(RIDING NOW)</span>' : ''}</div>
+            <div class="vehicle-desc">${v.desc}</div>
+            <div style="font-size:0.74rem; font-weight:800; color:#81d4fa; margin-top:3px;">⚡ ${v.speed}</div>
+          </div>
+        </div>
+        <div>
+          ${v.unlocked
+            ? `<button class="vehicle-btn-action" id="btn-ride-${v.id}">
+                ${isRiding ? 'Dismount 🚶' : 'Ride ' + v.icon}
+               </button>`
+            : `<button class="buy-btn ${canBuy ? '' : 'disabled'}" id="btn-unlock-${v.id}">
+                <span>Unlock</span>
+                <span class="btn-price">${v.cost} 🪙</span>
+               </button>`
+          }
+        </div>
+      `;
+      grid.appendChild(card);
+
+      if (v.unlocked) {
+        card.querySelector(`#btn-ride-${v.id}`).addEventListener('click', () => {
+          if (isRiding) {
+            this.player.dismount();
+            this.showFloatNum('🚶 Dismounted to walk', window.innerWidth / 2, window.innerHeight / 2 - 20);
+          } else {
+            this.player.mount(v.id);
+            this.showFloatNum(`Riding ${v.name}! ${v.icon}`, window.innerWidth / 2, window.innerHeight / 2 - 20);
+          }
+          this.updateVehicleHUD();
+          this.closeSheet();
+        });
+      } else if (canBuy) {
+        card.querySelector(`#btn-unlock-${v.id}`).addEventListener('click', () => {
+          if (this.gameState.unlockVehicle(v.id)) {
+            this.updateTopBar();
+            if (window.soundEngine) window.soundEngine.playUpgrade();
+            this.showFloatNum(`🎉 Unlocked ${v.name}!`, window.innerWidth / 2, window.innerHeight / 2 - 20);
+            this.sheetBody.innerHTML = '';
+            this.renderVehiclesSheet();
+          }
+        });
+      }
+    });
+
+    this.sheetBody.appendChild(grid);
   }
 
   closeSheet() {

@@ -83,6 +83,10 @@ fun GameScreen(onWebViewCreated: (WebView) -> Unit = {}) {
             ViewGroup.LayoutParams.MATCH_PARENT
           )
           setBackgroundColor(0xFF141A16.toInt())
+          setLayerType(View.LAYER_TYPE_HARDWARE, null)
+          isVerticalScrollBarEnabled = false
+          isHorizontalScrollBarEnabled = false
+          overScrollMode = View.OVER_SCROLL_NEVER
 
           settings.apply {
             javaScriptEnabled = true

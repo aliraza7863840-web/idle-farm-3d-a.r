@@ -10,10 +10,34 @@ class PlayerCharacter {
     // Movement & state variables
     this.position = this.group.position;
     this.targetPos = null;
+    this.moveVector = new THREE.Vector3();
     this.speed = 4.8;
-    this.state = 'idle'; // 'idle', 'walk', 'harvest', 'cheer'
+    this.state = 'idle'; // 'idle', 'walk', 'jump', 'swim', 'ride', 'harvest', 'plant', 'cheer', 'fish'
     this.animTime = 0;
     this.harvestTimer = 0;
+
+    // Jump Physics
+    this.isJumping = false;
+    this.velocityY = 0;
+    this.groundY = 0;
+    this.gravity = 22.0;
+    this.jumpForce = 7.2;
+
+    // Swimming State
+    this.inWater = false;
+    this.isSwimming = false;
+    this.swimSplashTimer = 0;
+
+    // Vehicle Mounting
+    this.mountedVehicle = null; // 'bike', 'tractor', 'pickup', 'cart'
+    this.vehicleHeading = 0;
+    this.vehicleSpeed = 0;
+    this.wheelRotation = 0;
+
+    // Fishing State
+    this.isFishing = false;
+    this.fishingStage = 'none'; // 'casting', 'waiting', 'bite', 'reel'
+    this.fishingTimer = 0;
 
     // Materials Palette matching the character
     this.materials = {
@@ -37,15 +61,253 @@ class PlayerCharacter {
       lips: new THREE.MeshLambertMaterial({ color: 0xa46853 }),
       backpack: new THREE.MeshLambertMaterial({ color: 0x37474f }),
       backpackPocket: new THREE.MeshLambertMaterial({ color: 0x263238 }),
-      goldAura: new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.8, side: THREE.DoubleSide })
+      goldAura: new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.8, side: THREE.DoubleSide }),
+      fishingBamboo: new THREE.MeshLambertMaterial({ color: 0xd7ccc8 }),
+      fishingLineMat: new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 }),
+      waterRippleMat: new THREE.MeshBasicMaterial({ color: 0x81d4fa, transparent: true, opacity: 0.7, side: THREE.DoubleSide }),
+      bikeRed: new THREE.MeshLambertMaterial({ color: 0xe53935 }),
+      bikeMetal: new THREE.MeshLambertMaterial({ color: 0xb0bec5 }),
+      bikeTire: new THREE.MeshLambertMaterial({ color: 0x212121 }),
+      tractorYellow: new THREE.MeshLambertMaterial({ color: 0xfbc02d }),
+      tractorGreen: new THREE.MeshLambertMaterial({ color: 0x2e7d32 }),
+      pickupBlue: new THREE.MeshLambertMaterial({ color: 0x1e88e5 }),
+      buggyOrange: new THREE.MeshLambertMaterial({ color: 0xff6f00 }),
+      sedanTeal: new THREE.MeshLambertMaterial({ color: 0x00838f }),
+      quadGreen: new THREE.MeshLambertMaterial({ color: 0x33691e }),
+      glassMat: new THREE.MeshLambertMaterial({ color: 0xb3e5fc, transparent: true, opacity: 0.65 }),
+      cartWood: new THREE.MeshLambertMaterial({ color: 0x8d6e63 })
     };
 
     this.buildCharacter();
+    this.buildFishingRod();
+    this.buildMountedVehicles();
     this.buildLevelUpFX();
     this.scene.add(this.group);
 
     // Initial position on farm
     this.group.position.set(0, 0, 2);
+  }
+
+  buildFishingRod() {
+    this.fishingRodGroup = new THREE.Group();
+    const rodGeo = new THREE.CylinderGeometry(0.015, 0.03, 1.8, 6);
+    const rodMesh = new THREE.Mesh(rodGeo, this.materials.fishingBamboo);
+    rodMesh.position.set(0, 0.8, 0.4);
+    rodMesh.rotation.x = -Math.PI / 4;
+    this.fishingRodGroup.add(rodMesh);
+
+    // Fishing line with bobber
+    const lineGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, 1.4, 1.0),
+      new THREE.Vector3(0, 0.0, 3.2)
+    ]);
+    this.fishingLine = new THREE.Line(lineGeo, this.materials.fishingLineMat);
+    this.fishingRodGroup.add(this.fishingLine);
+
+    const bobberGeo = new THREE.SphereGeometry(0.08, 6, 6);
+    this.bobber = new THREE.Mesh(bobberGeo, new THREE.MeshBasicMaterial({ color: 0xff1744 }));
+    this.bobber.position.set(0, 0.0, 3.2);
+    this.fishingRodGroup.add(this.bobber);
+
+    this.fishingRodGroup.visible = false;
+    this.group.add(this.fishingRodGroup);
+  }
+
+  buildMountedVehicles() {
+    // 1. Mounted Bike Model
+    this.bikeMountGroup = new THREE.Group();
+    const bFrame = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.4, 6), this.materials.bikeRed);
+    bFrame.rotation.z = Math.PI / 2;
+    bFrame.position.y = 0.55;
+    this.bikeMountGroup.add(bFrame);
+
+    const bBar = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.7, 6), this.materials.bikeMetal);
+    bBar.rotation.z = Math.PI / 2;
+    bBar.position.set(0, 0.95, 0.65);
+    this.bikeMountGroup.add(bBar);
+
+    this.bikeWheels = [];
+    [-0.65, 0.65].forEach(z => {
+      const wGroup = new THREE.Group();
+      wGroup.position.set(0, 0.38, z);
+      const tire = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.045, 8, 16), this.materials.bikeTire);
+      tire.rotation.y = Math.PI / 2;
+      wGroup.add(tire);
+      const spoke1 = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.65, 4), this.materials.bikeMetal);
+      wGroup.add(spoke1);
+      const spoke2 = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.65, 4), this.materials.bikeMetal);
+      spoke2.rotation.x = Math.PI / 2;
+      wGroup.add(spoke2);
+      this.bikeMountGroup.add(wGroup);
+      this.bikeWheels.push(wGroup);
+    });
+
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.06, 0.28), this.materials.shoes);
+    seat.position.set(0, 0.75, -0.15);
+    this.bikeMountGroup.add(seat);
+
+    this.bikeMountGroup.visible = false;
+    this.group.add(this.bikeMountGroup);
+
+    // 2. Mounted Tractor Model
+    this.tractorMountGroup = new THREE.Group();
+    const trBody = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.75, 1.8), this.materials.tractorGreen);
+    trBody.position.set(0, 0.65, 0);
+    this.tractorMountGroup.add(trBody);
+
+    const trHood = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.6, 1.0), this.materials.tractorYellow);
+    trHood.position.set(0, 0.6, 0.9);
+    this.tractorMountGroup.add(trHood);
+
+    const trExhaust = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.8, 6), this.materials.bikeMetal);
+    trExhaust.position.set(0.35, 1.2, 0.9);
+    this.tractorMountGroup.add(trExhaust);
+
+    this.tractorWheels = [];
+    [-0.7, 0.7].forEach(x => {
+      const w = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.52, 0.28, 14), this.materials.bikeTire);
+      w.rotation.z = Math.PI / 2;
+      w.position.set(x, 0.52, -0.45);
+      this.tractorMountGroup.add(w);
+      this.tractorWheels.push(w);
+    });
+    [-0.6, 0.6].forEach(x => {
+      const w = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.2, 12), this.materials.bikeTire);
+      w.rotation.z = Math.PI / 2;
+      w.position.set(x, 0.34, 0.85);
+      this.tractorMountGroup.add(w);
+      this.tractorWheels.push(w);
+    });
+
+    this.tractorMountGroup.visible = false;
+    this.group.add(this.tractorMountGroup);
+
+    // 3. Mounted Pickup Truck Model
+    this.pickupMountGroup = new THREE.Group();
+    const pkCab = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.85, 1.2), this.materials.pickupBlue);
+    pkCab.position.set(0, 0.8, 0.3);
+    this.pickupMountGroup.add(pkCab);
+
+    const pkBed = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.5, 1.3), this.materials.pickupBlue);
+    pkBed.position.set(0, 0.6, -0.85);
+    this.pickupMountGroup.add(pkBed);
+
+    const pkWindshield = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.45, 0.1), this.materials.glassMat);
+    pkWindshield.position.set(0, 0.9, 0.9);
+    this.pickupMountGroup.add(pkWindshield);
+
+    this.pickupWheels = [];
+    [[-0.72, 0.7], [0.72, 0.7], [-0.72, -0.9], [0.72, -0.9]].forEach(([x, z]) => {
+      const w = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.22, 12), this.materials.bikeTire);
+      w.rotation.z = Math.PI / 2;
+      w.position.set(x, 0.32, z);
+      this.pickupMountGroup.add(w);
+      this.pickupWheels.push(w);
+    });
+
+    this.pickupMountGroup.visible = false;
+    this.group.add(this.pickupMountGroup);
+
+    // 4. Mounted Off-Road Dune Buggy Model
+    this.buggyMountGroup = new THREE.Group();
+    const bgChassis = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.45, 1.9), this.materials.buggyOrange);
+    bgChassis.position.set(0, 0.5, 0);
+    this.buggyMountGroup.add(bgChassis);
+
+    // Roll Cage Tubes
+    const cageGeo = new THREE.CylinderGeometry(0.035, 0.035, 1.1, 6);
+    [[-0.6, 0.4], [0.6, 0.4], [-0.6, -0.5], [0.6, -0.5]].forEach(([cx, cz]) => {
+      const tube = new THREE.Mesh(cageGeo, this.materials.bikeMetal);
+      tube.position.set(cx, 1.05, cz);
+      this.buggyMountGroup.add(tube);
+    });
+    const cageTop = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.06, 0.9), this.materials.bikeMetal);
+    cageTop.position.set(0, 1.6, -0.05);
+    this.buggyMountGroup.add(cageTop);
+
+    // Front spoiler / bull bar
+    const bullBar = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.12, 0.15), this.materials.bikeMetal);
+    bullBar.position.set(0, 0.45, 1.0);
+    this.buggyMountGroup.add(bullBar);
+
+    this.buggyWheels = [];
+    [[-0.8, 0.75], [0.8, 0.75], [-0.8, -0.75], [0.8, -0.75]].forEach(([x, z]) => {
+      const w = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.28, 12), this.materials.bikeTire);
+      w.rotation.z = Math.PI / 2;
+      w.position.set(x, 0.38, z);
+      this.buggyMountGroup.add(w);
+      this.buggyWheels.push(w);
+    });
+
+    this.buggyMountGroup.visible = false;
+    this.group.add(this.buggyMountGroup);
+
+    // 5. Mounted Town Sedan Car Model
+    this.sedanMountGroup = new THREE.Group();
+    const sdBody = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.55, 2.3), this.materials.sedanTeal);
+    sdBody.position.set(0, 0.55, 0);
+    this.sedanMountGroup.add(sdBody);
+
+    const sdCabin = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.55, 1.3), this.materials.sedanTeal);
+    sdCabin.position.set(0, 1.05, -0.15);
+    this.sedanMountGroup.add(sdCabin);
+
+    const sdGlassFront = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.45, 0.1), this.materials.glassMat);
+    sdGlassFront.position.set(0, 1.05, 0.52);
+    this.sedanMountGroup.add(sdGlassFront);
+
+    this.sedanWheels = [];
+    [[-0.75, 0.8], [0.75, 0.8], [-0.75, -0.8], [0.75, -0.8]].forEach(([x, z]) => {
+      const w = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.22, 12), this.materials.bikeTire);
+      w.rotation.z = Math.PI / 2;
+      w.position.set(x, 0.32, z);
+      this.sedanMountGroup.add(w);
+      this.sedanWheels.push(w);
+    });
+
+    this.sedanMountGroup.visible = false;
+    this.group.add(this.sedanMountGroup);
+
+    // 6. Mounted Quad ATV Model
+    this.quadMountGroup = new THREE.Group();
+    const qdBody = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.45, 1.4), this.materials.quadGreen);
+    qdBody.position.set(0, 0.55, 0);
+    this.quadMountGroup.add(qdBody);
+
+    const qdHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.8, 6), this.materials.bikeMetal);
+    qdHandle.rotation.z = Math.PI / 2;
+    qdHandle.position.set(0, 1.05, 0.45);
+    this.quadMountGroup.add(qdHandle);
+
+    this.quadWheels = [];
+    [[-0.65, 0.55], [0.65, 0.55], [-0.65, -0.55], [0.65, -0.55]].forEach(([x, z]) => {
+      const w = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.26, 12), this.materials.bikeTire);
+      w.rotation.z = Math.PI / 2;
+      w.position.set(x, 0.35, z);
+      this.quadMountGroup.add(w);
+      this.quadWheels.push(w);
+    });
+
+    this.quadMountGroup.visible = false;
+    this.group.add(this.quadMountGroup);
+
+    // 7. Mounted Farm Cart Model
+    this.cartMountGroup = new THREE.Group();
+    const wagon = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.55, 1.6), this.materials.cartWood);
+    wagon.position.set(0, 0.6, 0);
+    this.cartMountGroup.add(wagon);
+
+    this.cartWheels = [];
+    [[-0.68, -0.3], [0.68, -0.3]].forEach(([x, z]) => {
+      const w = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.12, 14), this.materials.cartWood);
+      w.rotation.z = Math.PI / 2;
+      w.position.set(x, 0.48, z);
+      this.cartMountGroup.add(w);
+      this.cartWheels.push(w);
+    });
+
+    this.cartMountGroup.visible = false;
+    this.group.add(this.cartMountGroup);
   }
 
   buildCharacter() {
@@ -300,10 +562,101 @@ class PlayerCharacter {
     if (window.soundEngine) window.soundEngine.playPlant();
   }
 
-  triggerCheer() {
-    this.state = 'cheer';
-    this.harvestTimer = 1.2;
-    if (window.soundEngine) window.soundEngine.playLevelUp();
+  jump() {
+    if (this.state === 'sit' || this.state === 'lie') {
+      this.standUp();
+    }
+    if (this.isJumping || this.inWater) return;
+    this.isJumping = true;
+    this.velocityY = this.jumpForce;
+    if (window.soundEngine) window.soundEngine.playJump();
+  }
+
+  sit(benchPos = null) {
+    if (this.mountedVehicle || this.inWater) return;
+    if (this.state === 'sit') {
+      this.standUp();
+      return;
+    }
+    this.state = 'sit';
+    this.targetPos = null;
+    this.moveVector.set(0, 0, 0);
+    if (benchPos) {
+      this.group.position.set(benchPos.x, benchPos.y || 0, benchPos.z);
+      if (benchPos.rot !== undefined) this.group.rotation.y = benchPos.rot;
+    }
+    if (window.soundEngine && window.soundEngine.playStep) window.soundEngine.playStep();
+  }
+
+  lieDown(bedPos = null) {
+    if (this.mountedVehicle || this.inWater) return;
+    if (this.state === 'lie') {
+      this.standUp();
+      return;
+    }
+    this.state = 'lie';
+    this.targetPos = null;
+    this.moveVector.set(0, 0, 0);
+    if (bedPos) {
+      this.group.position.set(bedPos.x, bedPos.y || 0, bedPos.z);
+      if (bedPos.rot !== undefined) this.group.rotation.y = bedPos.rot;
+    }
+    if (window.soundEngine && window.soundEngine.playStep) window.soundEngine.playStep();
+  }
+
+  standUp() {
+    if (this.state === 'sit' || this.state === 'lie') {
+      this.state = 'idle';
+      this.hips.position.y = 0.95;
+      this.torso.rotation.set(0, 0, 0);
+      this.head.rotation.set(0, 0, 0);
+      this.leftLeg.hip.rotation.set(0, 0, 0);
+      this.rightLeg.hip.rotation.set(0, 0, 0);
+      this.leftLeg.knee.rotation.set(0, 0, 0);
+      this.rightLeg.knee.rotation.set(0, 0, 0);
+      this.leftArm.shoulder.rotation.set(0, 0, 0);
+      this.rightArm.shoulder.rotation.set(0, 0, 0);
+    }
+  }
+
+  mount(vehicleType) {
+    this.standUp();
+    this.mountedVehicle = vehicleType;
+    if (this.bikeMountGroup) this.bikeMountGroup.visible = (vehicleType === 'bike');
+    if (this.tractorMountGroup) this.tractorMountGroup.visible = (vehicleType === 'tractor');
+    if (this.pickupMountGroup) this.pickupMountGroup.visible = (vehicleType === 'pickup');
+    if (this.buggyMountGroup) this.buggyMountGroup.visible = (vehicleType === 'buggy');
+    if (this.sedanMountGroup) this.sedanMountGroup.visible = (vehicleType === 'sedan');
+    if (this.quadMountGroup) this.quadMountGroup.visible = (vehicleType === 'quad');
+    if (this.cartMountGroup) this.cartMountGroup.visible = (vehicleType === 'cart');
+  }
+
+  dismount() {
+    this.mountedVehicle = null;
+    if (this.bikeMountGroup) this.bikeMountGroup.visible = false;
+    if (this.tractorMountGroup) this.tractorMountGroup.visible = false;
+    if (this.pickupMountGroup) this.pickupMountGroup.visible = false;
+    if (this.buggyMountGroup) this.buggyMountGroup.visible = false;
+    if (this.sedanMountGroup) this.sedanMountGroup.visible = false;
+    if (this.quadMountGroup) this.quadMountGroup.visible = false;
+    if (this.cartMountGroup) this.cartMountGroup.visible = false;
+    this.standUp();
+  }
+
+  startFishing(onCatchCallback) {
+    this.standUp();
+    this.isFishing = true;
+    this.fishingStage = 'casting';
+    this.fishingTimer = 0;
+    this.fishingRodGroup.visible = true;
+    this.onFishCaught = onCatchCallback;
+    if (window.soundEngine) window.soundEngine.playFishingCast();
+  }
+
+  stopFishing() {
+    this.isFishing = false;
+    this.fishingStage = 'none';
+    this.fishingRodGroup.visible = false;
   }
 
   update(delta) {
@@ -319,15 +672,70 @@ class PlayerCharacter {
       }
     }
 
-    // Movement toward target
-    if (this.targetPos) {
+    // --- Jump Physics ---
+    if (this.isJumping) {
+      this.velocityY -= this.gravity * delta;
+      this.group.position.y += this.velocityY * delta;
+
+      if (this.group.position.y <= this.groundY) {
+        this.group.position.y = this.groundY;
+        this.isJumping = false;
+        this.velocityY = 0;
+        if (window.soundEngine) window.soundEngine.playLand();
+      }
+    }
+
+    // --- Water / Swimming Detection ---
+    if (this.inWater) {
+      this.isSwimming = true;
+      this.group.position.y = -0.45; // submerged in river
+      this.swimSplashTimer += delta;
+      if (this.swimSplashTimer > 0.4 && (this.state === 'walk' || this.moveVector.lengthSq() > 0)) {
+        this.swimSplashTimer = 0;
+        if (window.soundEngine) window.soundEngine.playWaterSplash();
+      }
+    } else {
+      this.isSwimming = false;
+      if (!this.isJumping) {
+        this.group.position.y = this.groundY;
+      }
+    }
+
+    // --- Vehicle Speed Modifier ---
+    let currentSpeed = this.speed;
+    if (this.mountedVehicle === 'buggy') currentSpeed = 19.5;
+    else if (this.mountedVehicle === 'sedan') currentSpeed = 16.0;
+    else if (this.mountedVehicle === 'pickup') currentSpeed = 15.5;
+    else if (this.mountedVehicle === 'quad') currentSpeed = 14.0;
+    else if (this.mountedVehicle === 'bike') currentSpeed = 12.0;
+    else if (this.mountedVehicle === 'cart') currentSpeed = 9.0;
+    else if (this.mountedVehicle === 'tractor') currentSpeed = 7.5;
+    else if (this.isSwimming) currentSpeed = 3.2;
+
+    // --- Direct Move Vector & Target Movement ---
+    let isMoving = false;
+    if (this.moveVector && this.moveVector.lengthSq() > 0.01) {
+      if (this.state === 'sit' || this.state === 'lie') this.standUp();
+      isMoving = true;
+      const move = this.moveVector.clone().normalize().multiplyScalar(currentSpeed * delta);
+      this.group.position.add(move);
+
+      const targetRot = Math.atan2(this.moveVector.x, this.moveVector.z);
+      let diff = targetRot - this.group.rotation.y;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      this.group.rotation.y += diff * 12.0 * delta;
+      this.state = 'walk';
+    } else if (this.targetPos) {
+      if (this.state === 'sit' || this.state === 'lie') this.standUp();
       const dir = new THREE.Vector3().subVectors(this.targetPos, this.group.position);
       dir.y = 0;
       const dist = dir.length();
 
       if (dist > 0.15) {
+        isMoving = true;
         dir.normalize();
-        this.group.position.addScaledVector(dir, this.speed * delta);
+        this.group.position.addScaledVector(dir, currentSpeed * delta);
 
         const targetRot = Math.atan2(dir.x, dir.z);
         let diff = targetRot - this.group.rotation.y;
@@ -340,6 +748,44 @@ class PlayerCharacter {
         this.targetPos = null;
         if (this.state === 'walk') this.state = 'idle';
       }
+    } else if (this.state === 'walk') {
+      this.state = 'idle';
+    }
+
+    // --- Wheel Spin for Mounted Vehicles ---
+    if (isMoving && this.mountedVehicle) {
+      this.wheelRotation += delta * currentSpeed * 2.5;
+      if (this.bikeWheels) this.bikeWheels.forEach(w => w.rotation.x = this.wheelRotation);
+      if (this.tractorWheels) this.tractorWheels.forEach(w => w.rotation.x = this.wheelRotation);
+      if (this.pickupWheels) this.pickupWheels.forEach(w => w.rotation.x = this.wheelRotation);
+      if (this.buggyWheels) this.buggyWheels.forEach(w => w.rotation.x = this.wheelRotation);
+      if (this.sedanWheels) this.sedanWheels.forEach(w => w.rotation.x = this.wheelRotation);
+      if (this.quadWheels) this.quadWheels.forEach(w => w.rotation.x = this.wheelRotation);
+      if (this.cartWheels) this.cartWheels.forEach(w => w.rotation.x = this.wheelRotation);
+    }
+
+    // --- Fishing State Machine ---
+    if (this.isFishing) {
+      this.fishingTimer += delta;
+      if (this.fishingStage === 'casting' && this.fishingTimer > 0.6) {
+        this.fishingStage = 'waiting';
+        this.fishingTimer = 0;
+      } else if (this.fishingStage === 'waiting' && this.fishingTimer > 2.2 + Math.random() * 1.5) {
+        this.fishingStage = 'bite';
+        this.fishingTimer = 0;
+        if (window.soundEngine) window.soundEngine.playFishingBite();
+        if (window.uiController) window.uiController.showFloatingText('🎣 Fish on the line! Reeling in!', window.innerWidth / 2, window.innerHeight / 2);
+      } else if (this.fishingStage === 'bite' && this.fishingTimer > 1.2) {
+        this.fishingStage = 'none';
+        this.isFishing = false;
+        this.fishingRodGroup.visible = false;
+        if (window.soundEngine) window.soundEngine.playFishingCatch();
+        if (this.onFishCaught) this.onFishCaught();
+      }
+
+      if (this.bobber) {
+        this.bobber.position.y = Math.sin(Date.now() * 0.005) * 0.05 + (this.fishingStage === 'bite' ? -0.15 : 0);
+      }
     }
 
     if (this.harvestTimer > 0) {
@@ -349,8 +795,129 @@ class PlayerCharacter {
       }
     }
 
-    // Procedural Animation States
-    if (this.state === 'walk') {
+    // --- Procedural Animation Rigging ---
+    if (this.mountedVehicle) {
+      // Driving / Riding Sitting Pose
+      const isBikeOrQuad = (this.mountedVehicle === 'bike' || this.mountedVehicle === 'quad');
+      this.hips.position.y = isBikeOrQuad ? 1.02 : 0.72;
+      this.torso.rotation.x = isBikeOrQuad ? 0.35 : 0.08;
+      this.torso.rotation.y = 0;
+      this.head.rotation.x = isBikeOrQuad ? -0.25 : 0;
+
+      // Arms gripping handlebars / steering wheel
+      this.leftArm.shoulder.rotation.set(-0.85, 0, -0.3);
+      this.rightArm.shoulder.rotation.set(-0.85, 0, 0.3);
+      this.leftArm.elbow.rotation.set(-0.4, 0, 0);
+      this.rightArm.elbow.rotation.set(-0.4, 0, 0);
+
+      if (this.mountedVehicle === 'bike' && isMoving) {
+        // Pedaling motion
+        const pedal = this.wheelRotation * 1.5;
+        this.leftLeg.hip.rotation.set(0.6 + Math.sin(pedal) * 0.45, 0, 0);
+        this.rightLeg.hip.rotation.set(0.6 - Math.sin(pedal) * 0.45, 0, 0);
+        this.leftLeg.knee.rotation.set(0.8 - Math.sin(pedal) * 0.4, 0, 0);
+        this.rightLeg.knee.rotation.set(0.8 + Math.sin(pedal) * 0.4, 0, 0);
+      } else {
+        // Seated feet forward
+        this.leftLeg.hip.rotation.set(1.2, 0, -0.1);
+        this.rightLeg.hip.rotation.set(1.2, 0, 0.1);
+        this.leftLeg.knee.rotation.set(0.9, 0, 0);
+        this.rightLeg.knee.rotation.set(0.9, 0, 0);
+      }
+
+    } else if (this.state === 'sit') {
+      // Sitting down on chair / bench / ground
+      this.hips.position.y = 0.55;
+      this.torso.rotation.set(0.05, 0, 0);
+      this.head.rotation.set(0, 0, 0);
+
+      // Hands comfortably on lap
+      this.leftArm.shoulder.rotation.set(-0.6, 0, -0.2);
+      this.rightArm.shoulder.rotation.set(-0.6, 0, 0.2);
+      this.leftArm.elbow.rotation.set(-0.8, 0, 0);
+      this.rightArm.elbow.rotation.set(-0.8, 0, 0);
+
+      // Legs bent forward 90 deg
+      this.leftLeg.hip.rotation.set(1.4, 0, -0.1);
+      this.rightLeg.hip.rotation.set(1.4, 0, 0.1);
+      this.leftLeg.knee.rotation.set(1.45, 0, 0);
+      this.rightLeg.knee.rotation.set(1.45, 0, 0);
+
+    } else if (this.state === 'lie') {
+      // Lying down flat on ground / bed
+      this.hips.position.y = 0.16;
+      this.torso.rotation.set(1.52, 0, 0);
+      this.head.rotation.set(-0.4, 0, 0);
+
+      // Arms relaxed to the side / chest
+      this.leftArm.shoulder.rotation.set(-0.2, 0, -0.4);
+      this.rightArm.shoulder.rotation.set(-0.2, 0, 0.4);
+      this.leftArm.elbow.rotation.set(-0.3, 0, 0);
+      this.rightArm.elbow.rotation.set(-0.3, 0, 0);
+
+      // Legs straight
+      this.leftLeg.hip.rotation.set(0.05, 0, -0.1);
+      this.rightLeg.hip.rotation.set(0.05, 0, 0.1);
+      this.leftLeg.knee.rotation.set(0.05, 0, 0);
+      this.rightLeg.knee.rotation.set(0.05, 0, 0);
+
+    } else if (this.isSwimming) {
+      // Swimming Stroke Animation
+      const strokeCycle = this.animTime * 1.8;
+      this.hips.position.y = 0.45;
+      this.torso.rotation.x = 1.1; // prone swimming angle
+      this.head.rotation.x = -0.7;  // head looking up out of water
+
+      // Crawl arm stroke
+      const armSwing = Math.sin(strokeCycle);
+      this.leftArm.shoulder.rotation.set(-1.8 + armSwing * 0.8, 0, -0.6);
+      this.rightArm.shoulder.rotation.set(-1.8 - armSwing * 0.8, 0, 0.6);
+      this.leftArm.elbow.rotation.set(-0.6, 0, 0);
+      this.rightArm.elbow.rotation.set(-0.6, 0, 0);
+
+      // Flutter kicking legs
+      const legKick = Math.sin(strokeCycle * 2.5);
+      this.leftLeg.hip.rotation.set(0.2 + legKick * 0.35, 0, 0);
+      this.rightLeg.hip.rotation.set(0.2 - legKick * 0.35, 0, 0);
+      this.leftLeg.knee.rotation.set(0.3, 0, 0);
+      this.rightLeg.knee.rotation.set(0.3, 0, 0);
+
+    } else if (this.isJumping) {
+      // Airborne Jump Pose
+      this.hips.position.y = 0.95;
+      this.torso.rotation.x = 0.15;
+      this.head.rotation.x = -0.15;
+
+      // Arms raised outward
+      this.leftArm.shoulder.rotation.set(-1.4, 0, -0.6);
+      this.rightArm.shoulder.rotation.set(-1.4, 0, 0.6);
+      this.leftArm.elbow.rotation.set(-0.3, 0, 0);
+      this.rightArm.elbow.rotation.set(-0.3, 0, 0);
+
+      // Legs bent back
+      this.leftLeg.hip.rotation.set(0.4, 0, -0.15);
+      this.rightLeg.hip.rotation.set(0.4, 0, 0.15);
+      this.leftLeg.knee.rotation.set(0.85, 0, 0);
+      this.rightLeg.knee.rotation.set(0.85, 0, 0);
+
+    } else if (this.isFishing) {
+      // Fishing Casting & Holding Pose
+      this.hips.position.y = 0.95;
+      this.torso.rotation.x = 0.1;
+      this.head.rotation.x = -0.2;
+
+      // Holding rod with two hands
+      this.leftArm.shoulder.rotation.set(-0.9, 0, -0.2);
+      this.rightArm.shoulder.rotation.set(-1.1, 0, 0.2);
+      this.leftArm.elbow.rotation.set(-0.5, 0, 0);
+      this.rightArm.elbow.rotation.set(-0.7, 0, 0);
+
+      this.leftLeg.hip.rotation.set(0, 0, -0.1);
+      this.rightLeg.hip.rotation.set(0, 0, 0.1);
+      this.leftLeg.knee.rotation.set(0, 0, 0);
+      this.rightLeg.knee.rotation.set(0, 0, 0);
+
+    } else if (this.state === 'walk') {
       const walkCycle = this.animTime * 1.5;
       const swing = Math.sin(walkCycle);
 
