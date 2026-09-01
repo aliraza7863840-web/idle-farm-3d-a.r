@@ -37,7 +37,7 @@ class MainActivity : ComponentActivity() {
           modifier = Modifier
             .fillMaxSize()
             .testTag("main_game_screen"),
-          color = Color(0xFF141A16)
+          color = Color(0xFF81D4FA)
         ) {
           GameScreen(
             onWebViewCreated = { wv -> webView = wv }
@@ -70,7 +70,7 @@ fun GameScreen(onWebViewCreated: (WebView) -> Unit = {}) {
   Box(
     modifier = Modifier
       .fillMaxSize()
-      .background(Color(0xFF141A16))
+      .background(Color(0xFF81D4FA))
   ) {
     AndroidView(
       modifier = Modifier
@@ -82,7 +82,7 @@ fun GameScreen(onWebViewCreated: (WebView) -> Unit = {}) {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
           )
-          setBackgroundColor(0xFF141A16.toInt())
+          setBackgroundColor(0xFF81D4FA.toInt())
           setLayerType(View.LAYER_TYPE_HARDWARE, null)
           isVerticalScrollBarEnabled = false
           isHorizontalScrollBarEnabled = false

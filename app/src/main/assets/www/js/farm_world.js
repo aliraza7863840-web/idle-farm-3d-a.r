@@ -13,7 +13,7 @@ class FarmWorld {
     this.interactiveObjects = [];
 
     // Materials Library
-    this.materials = {
+    const rawMaterials = {
       grass: new THREE.MeshLambertMaterial({ color: 0x558b2f }),
       grassDark: new THREE.MeshLambertMaterial({ color: 0x33691e }),
       dirt: new THREE.MeshLambertMaterial({ color: 0x5d4037 }),
@@ -23,14 +23,19 @@ class FarmWorld {
       woodDark: new THREE.MeshLambertMaterial({ color: 0x4e342e }),
       woodPlank: new THREE.MeshLambertMaterial({ color: 0x8d6e63 }),
       woodLight: new THREE.MeshLambertMaterial({ color: 0xbcaaa4 }),
+      houseWall: new THREE.MeshLambertMaterial({ color: 0xefebe9 }),
       roofRed: new THREE.MeshLambertMaterial({ color: 0xb71c1c }),
       roofBlue: new THREE.MeshLambertMaterial({ color: 0x1565c0 }),
+      roofOrange: new THREE.MeshLambertMaterial({ color: 0xf57c00 }),
+      roofWood: new THREE.MeshLambertMaterial({ color: 0x5d4037 }),
+      roofDark: new THREE.MeshLambertMaterial({ color: 0x263238 }),
       roofModern: new THREE.MeshLambertMaterial({ color: 0x263238 }),
       villaWall: new THREE.MeshLambertMaterial({ color: 0xeeeeee }),
       glass: new THREE.MeshLambertMaterial({ color: 0xb3e5fc, transparent: true, opacity: 0.65 }),
       glassGlow: new THREE.MeshBasicMaterial({ color: 0xffd54f, transparent: true, opacity: 0.85 }),
       solarPanel: new THREE.MeshLambertMaterial({ color: 0x0d47a1 }),
       wheat: new THREE.MeshLambertMaterial({ color: 0xfbc02d }),
+      wheatSeed: new THREE.MeshLambertMaterial({ color: 0xd7ccc8 }),
       corn: new THREE.MeshLambertMaterial({ color: 0x7cb342 }),
       cornCob: new THREE.MeshLambertMaterial({ color: 0xffd54f }),
       carrot: new THREE.MeshLambertMaterial({ color: 0xff6d00 }),
@@ -108,11 +113,18 @@ class FarmWorld {
       crosswalk: new THREE.MeshBasicMaterial({ color: 0xffffff }),
       tentCloth: new THREE.MeshLambertMaterial({ color: 0xd84315 }),
       brickWall: new THREE.MeshLambertMaterial({ color: 0xb71c1c }),
-      roofBlue: new THREE.MeshLambertMaterial({ color: 0x1565c0 }),
-      roofRed: new THREE.MeshLambertMaterial({ color: 0xc62828 }),
       gasYellow: new THREE.MeshLambertMaterial({ color: 0xfbc02d }),
       glassMat: new THREE.MeshLambertMaterial({ color: 0xb3e5fc, transparent: true, opacity: 0.65 })
     };
+
+    const defaultFallbackMat = new THREE.MeshLambertMaterial({ color: 0x888888 });
+    this.materials = new Proxy(rawMaterials, {
+      get: (target, prop) => {
+        if (prop in target) return target[prop];
+        console.warn(`[FarmWorld] Material "${String(prop)}" not found, using fallback.`);
+        return defaultFallbackMat;
+      }
+    });
 
     this.houseGroup = new THREE.Group();
     this.scene.add(this.houseGroup);

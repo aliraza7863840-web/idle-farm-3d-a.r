@@ -136,9 +136,32 @@ class GameState {
     this.offlineEarnings = null;
 
     this.load();
+    this.initAutoSave();
   }
 
-  save() {
+  initAutoSave() {
+    // 1. Regular 4-second auto-save interval
+    this.autoSaveInterval = setInterval(() => {
+      this.save(true);
+    }, 4000);
+
+    // 2. Lifecycle event hooks for mobile/Android webview resilience
+    if (typeof window !== 'undefined') {
+      window.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+          this.save(true);
+        }
+      });
+      window.addEventListener('beforeunload', () => {
+        this.save(true);
+      });
+      window.addEventListener('pagehide', () => {
+        this.save(true);
+      });
+    }
+  }
+
+  save(isAutoSave = false) {
     const data = {
       coins: this.coins,
       gems: this.gems,
@@ -172,6 +195,10 @@ class GameState {
     };
     try {
       localStorage.setItem('idle_farm_empire_save', JSON.stringify(data));
+      this.lastSaveTime = Date.now();
+      if (!isAutoSave) {
+        console.log("Game state manually saved.");
+      }
     } catch (e) {
       console.warn("Storage save error", e);
     }

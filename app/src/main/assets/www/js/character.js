@@ -40,7 +40,7 @@ class PlayerCharacter {
     this.fishingTimer = 0;
 
     // Materials Palette matching the character
-    this.materials = {
+    const rawMaterials = {
       skin: new THREE.MeshLambertMaterial({ color: 0xb88265 }),
       skinShadow: new THREE.MeshLambertMaterial({ color: 0x9e6b52 }),
       hair: new THREE.MeshLambertMaterial({ color: 0x181615 }),
@@ -77,6 +77,14 @@ class PlayerCharacter {
       glassMat: new THREE.MeshLambertMaterial({ color: 0xb3e5fc, transparent: true, opacity: 0.65 }),
       cartWood: new THREE.MeshLambertMaterial({ color: 0x8d6e63 })
     };
+
+    const defaultFallbackMat = new THREE.MeshLambertMaterial({ color: 0x888888 });
+    this.materials = new Proxy(rawMaterials, {
+      get: (target, prop) => {
+        if (prop in target) return target[prop];
+        return defaultFallbackMat;
+      }
+    });
 
     this.buildCharacter();
     this.buildFishingRod();

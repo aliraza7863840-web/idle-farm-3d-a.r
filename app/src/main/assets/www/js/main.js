@@ -40,10 +40,11 @@ function initGame() {
     return;
   }
 
-  const width = window.innerWidth || 360;
-  const height = window.innerHeight || 640;
+  const width = Math.max(window.innerWidth || 360, 360);
+  const height = Math.max(window.innerHeight || 640, 640);
   renderer.setSize(width, height);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setClearColor(0x81d4fa, 1.0);
   try {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -58,24 +59,25 @@ function initGame() {
 
   canvas.addEventListener('webglcontextrestored', () => {
     console.log("WebGL Context Restored");
+    renderer.setClearColor(0x81d4fa, 1.0);
   }, false);
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x81d4fa);
-  scene.fog = new THREE.Fog(0x81d4fa, 45, 100);
+  scene.fog = new THREE.Fog(0x81d4fa, 120, 650);
 
   // Isometric / Perspective Camera with expanded view distance for 600x600 world
-  const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 800);
-  camera.position.set(9, 10.5, 12);
-  camera.lookAt(0, 0.6, 0);
+  const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+  camera.position.set(10, 11, 13);
+  camera.lookAt(0, 0.8, 0);
 
   const controls = new THREE.OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.maxPolarAngle = Math.PI / 2.05;
   controls.minDistance = 2.5;
-  controls.maxDistance = 180;
-  controls.target.set(0, 0.6, 0);
+  controls.maxDistance = 220;
+  controls.target.set(0, 0.8, 0);
   controls.update();
 
   // --- Lighting & Day-Night System ---
@@ -748,21 +750,32 @@ function initGame() {
 
     controls.update();
     if (renderer) {
-      renderer.render(scene, camera);
+      try {
+        renderer.render(scene, camera);
+      } catch (renderErr) {
+        console.error("Three.js render pass error:", renderErr);
+      }
     }
   }
 
   requestAnimationFrame(animate);
 
-  // Resize handler
-  window.addEventListener('resize', () => {
+  // Resize & Orientation Change handler
+  function handleWindowResize() {
+    const w = Math.max(window.innerWidth || 360, 360);
+    const h = Math.max(window.innerHeight || 640, 640);
     if (camera) {
-      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.aspect = w / h;
       camera.updateProjectionMatrix();
     }
     if (renderer) {
-      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setSize(w, h);
     }
+  }
+
+  window.addEventListener('resize', handleWindowResize);
+  window.addEventListener('orientationchange', () => {
+    setTimeout(handleWindowResize, 100);
   });
 }
 
